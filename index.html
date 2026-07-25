@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>공원 원정대 — 서울어린이대공원 탐험 지도</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+<meta name="description" content="서울어린이대공원을 탐험하는 참여형 지도. 랜드마크를 찾아 모험을 떠나요!">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    background: #cfe3d2; display: flex; justify-content: center;
+  }
+  #frame {
+    position: relative; width: 100%; max-width: 480px; height: 100dvh;
+    background: #c3cfc4; overflow: hidden; touch-action: none;
+    box-shadow: 0 0 24px rgba(0,0,0,.12);
+  }
+  svg#map { width: 100%; height: 100%; display: block; cursor: grab; }
+  svg#map:active { cursor: grabbing; }
+
+  /* 상단 타이틀 */
+  #title {
+    position: absolute; top: 12px; left: 12px; z-index: 5;
+    background: #ffffffee; border-radius: 20px; padding: 8px 14px;
+    font-size: 15px; font-weight: 800; color: #2e6b34;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15); pointer-events: none;
+  }
+  #title small { display: block; font-size: 10px; font-weight: 600; color: #7ba381; }
+
+  /* 공원 밖 배너 */
+  #banner {
+    position: absolute; top: 12px; right: 12px; z-index: 5; max-width: 46%;
+    background: #fff8e1ee; border: 1px solid #f0d98c; border-radius: 14px;
+    padding: 8px 10px; font-size: 11px; color: #7a6420; display: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  }
+  #banner.show { display: block; }
+  #banner button {
+    margin-top: 6px; width: 100%; border: 0; border-radius: 10px;
+    background: #f5b83d; color: #4a3800; font-weight: 700; font-size: 12px;
+    padding: 6px 8px; cursor: pointer;
+  }
+  #demoTag {
+    position: absolute; top: 12px; right: 12px; z-index: 5; display: none;
+    background: #f5b83dee; color: #4a3800; font-size: 11px; font-weight: 800;
+    border-radius: 12px; padding: 6px 10px; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  }
+  #demoTag.show { display: block; }
+
+  /* 위치 버튼 */
+  #locBtn {
+    position: absolute; right: 14px; bottom: 96px; z-index: 5;
+    width: 48px; height: 48px; border-radius: 50%; border: 0;
+    background: #fff; font-size: 22px; cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,.2);
+  }
+  #locBtn.on { background: #3b82f6; }
+
+  /* 하단 진행 카드 */
+  #hud {
+    position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 5;
+    background: #ffffffee; border-radius: 16px; padding: 10px 14px;
+    font-size: 12px; color: #44614a; box-shadow: 0 3px 12px rgba(0,0,0,.15);
+    display: flex; align-items: center; gap: 10px; pointer-events: none;
+  }
+  #hud .n { font-size: 20px; font-weight: 800; color: #2e6b34; }
+
+  /* 바텀시트 */
+  #sheetWrap { position: absolute; inset: 0; z-index: 10; display: none; }
+  #sheetWrap.open { display: block; }
+  #sheetBack { position: absolute; inset: 0; background: rgba(0,0,0,.25); }
+  #sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: #fff; border-radius: 22px 22px 0 0; padding: 18px 20px 26px;
+    box-shadow: 0 -6px 24px rgba(0,0,0,.2);
+    animation: up .22s ease-out;
+  }
+  @keyframes up { from { transform: translateY(40%); opacity: .4; } to { transform: none; opacity: 1; } }
+  #sheet .grip { width: 40px; height: 4px; border-radius: 2px; background: #ddd; margin: 0 auto 12px; }
+  #sheet .row { display: flex; align-items: center; gap: 12px; }
+  #sheet .emo {
+    width: 52px; height: 52px; border-radius: 16px; background: #eef7e8;
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+  }
+  #sheet h2 { font-size: 18px; color: #223; }
+  #sheet .zone {
+    display: inline-block; font-size: 10px; font-weight: 700; color: #fff;
+    border-radius: 8px; padding: 2px 8px; margin-top: 3px;
+  }
+  #sheet p { margin-top: 12px; font-size: 14px; line-height: 1.55; color: #445; }
+  #sheet .soon {
+    margin-top: 14px; background: #f4f6f2; border-radius: 12px; padding: 10px 12px;
+    font-size: 12px; color: #8a9a80;
+  }
+
+  /* 코치마크 */
+  #coach {
+    position: absolute; inset: 0; z-index: 20; background: rgba(20,40,25,.55);
+    display: none; align-items: center; justify-content: center; text-align: center;
+  }
+  #coach.show { display: flex; }
+  #coach .card {
+    background: #fff; border-radius: 20px; padding: 24px 22px; width: 78%; max-width: 320px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3);
+  }
+  #coach .card .big { font-size: 34px; }
+  #coach .card h3 { font-size: 17px; color: #2e6b34; margin: 8px 0 6px; }
+  #coach .card p { font-size: 13px; color: #556; line-height: 1.6; }
+  #coach .card .priv { font-size: 11px; color: #98a; margin-top: 8px; }
+  #coach .card button {
+    margin-top: 14px; border: 0; border-radius: 12px; background: #2e6b34; color: #fff;
+    font-size: 14px; font-weight: 700; padding: 10px 26px; cursor: pointer;
+  }
+
+  #toast {
+    position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%);
+    background: #333c; color: #fff; font-size: 12px; border-radius: 20px;
+    padding: 8px 16px; z-index: 15; opacity: 0; transition: opacity .3s; pointer-events: none;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+
+  #credit {
+    position: absolute; right: 8px; bottom: 66px; z-index: 4; font-size: 8px;
+    color: #7a9a80; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="frame">
+  <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
+
+  <div id="title">🌳 공원 원정대<small>서울어린이대공원 탐험 지도</small></div>
+
+  <div id="banner">
+    📍 지금은 공원 밖이에요.<br>공원에서 열면 내 위치가 표시돼요.
+    <button id="demoBtn">데모 모드로 둘러보기</button>
+  </div>
+  <div id="demoTag">🧪 데모 모드 — 지도를 톡 누르면 이동</div>
+
+  <button id="locBtn" aria-label="내 위치">📍</button>
+
+  <div id="hud">
+    <span style="font-size:22px">🗺️</span>
+    <div><span class="n" id="hudCount">0</span> / 16 랜드마크 발견<br>핀을 눌러 어떤 곳인지 알아보세요</div>
+  </div>
+
+  <div id="credit">지도 데이터 © OpenStreetMap contributors</div>
+
+  <div id="sheetWrap">
+    <div id="sheetBack"></div>
+    <div id="sheet">
+      <div class="grip"></div>
+      <div class="row">
+        <div class="emo" id="shEmo"></div>
+        <div><h2 id="shName"></h2><span class="zone" id="shZone"></span></div>
+      </div>
+      <p id="shDesc"></p>
+      <div class="soon">🎯 곧 이곳에서 미션이 열려요! (준비 중)</div>
+    </div>
+  </div>
+
+  <div id="coach">
+    <div class="card">
+      <div class="big">🧭</div>
+      <h3>공원 원정대에 온 걸 환영해요!</h3>
+      <p>지도 위 <b>동그란 핀</b>을 눌러 랜드마크를 알아보고,<br>📍 버튼으로 <b>내 위치</b>를 켜서 탐험을 떠나요.</p>
+      <p class="priv">위치 정보는 휴대폰 안에서만 사용되고 어디에도 저장·전송되지 않아요.</p>
+      <button id="coachBtn">탐험 시작!</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script src="mapdata.js"></script>
+<script>
+'use strict';
+
+/* ─── 랜드마크 16곳 (좌표: OSM 실측, 15·16번은 근사) ─── */
+const ZONES = {
+  gate:   { label: '출입구',   color: '#8b7355' },
+  fun:    { label: '재미나라', color: '#e8709a' },
+  animal: { label: '동물나라', color: '#e8963c' },
+  nature: { label: '자연나라', color: '#4caf6e' },
+  conv:   { label: '쉼터',     color: '#7d8fc9' },
+};
+const LANDMARKS = [
+  { id:'main-gate', name:'정문·고객안내센터', zone:'gate', lat:37.54939, lon:127.07632, emoji:'🚩',
+    desc:'공원의 시작점! 고객안내소·미아보호소·의무실이 모여 있어요. 유아차와 휠체어도 여기서 빌릴 수 있어요.' },
+  { id:'sangsang', name:'서울상상나라', zone:'fun', lat:37.55066, lon:127.07752, emoji:'🎨',
+    desc:'아이들이 몸으로 놀며 배우는 체험형 어린이 박물관이에요.' },
+  { id:'fountain', name:'음악분수', zone:'fun', lat:37.54952, lon:127.07821, emoji:'⛲',
+    desc:'음악에 맞춰 물줄기가 춤추는 공원의 명물 분수예요.' },
+  { id:'openstage', name:'열린무대', zone:'fun', lat:37.54894, lon:127.07776, emoji:'🎤',
+    desc:'야외 공연과 행사가 열리는 큰 무대예요.' },
+  { id:'kkummaru', name:'꿈마루', zone:'conv', lat:37.54923, lon:127.07936, emoji:'☕',
+    desc:'공원 한가운데 있는 건축 명소. 카페와 전망 쉼터가 있어요.' },
+  { id:'kkumtle', name:'꿈틀꿈틀놀이터', zone:'fun', lat:37.54810, lon:127.08020, emoji:'🛝',
+    desc:'국내 최초 무장애 통합놀이터! 모든 아이가 함께 놀 수 있게 만들어졌어요.' },
+  { id:'foreststage', name:'숲속의무대', zone:'fun', lat:37.54905, lon:127.08030, emoji:'🎭',
+    desc:'나무로 둘러싸인 야외 공연장이에요.' },
+  { id:'tropical', name:'열대동물관', zone:'animal', lat:37.54932, lon:127.08176, emoji:'🦎', labelTop:true,
+    desc:'더운 나라에서 온 동물 친구들을 만나고, 동물학교 프로그램도 열려요.' },
+  { id:'minivillage', name:'꼬마동물마을', zone:'animal', lat:37.54897, lon:127.08162, emoji:'🐰',
+    desc:'작고 귀여운 동물 친구들이 사는 마을이에요.' },
+  { id:'predator', name:'맹수마을', zone:'animal', lat:37.54880, lon:127.08310, emoji:'🦁',
+    desc:'사자와 호랑이 같은 용맹한 동물들이 사는 곳이에요.' },
+  { id:'herbivore', name:'초식동물마을', zone:'animal', lat:37.54827, lon:127.08209, emoji:'🦌',
+    desc:'풀을 먹고 사는 순한 동물 친구들의 마을이에요.' },
+  { id:'sea', name:'바다동물원', zone:'animal', lat:37.54723, lon:127.08292, emoji:'🦭',
+    desc:'바다에서 온 동물 친구들을 만나는 곳이에요.' },
+  { id:'palgak', name:'팔각당', zone:'conv', lat:37.54984, lon:127.08245, emoji:'🏯',
+    desc:'공원 한가운데 8각 건물. 실내놀이터와 카페가 있어 쉬어가기 좋아요.' },
+  { id:'rides', name:'놀이동산', zone:'fun', lat:37.55148, lon:127.08379, emoji:'🎡',
+    desc:'신나는 놀이기구가 가득한 곳! 공원 북쪽에 있어요.' },
+  { id:'botanic', name:'식물원', zone:'nature', lat:37.54920, lon:127.08430, emoji:'🌷',
+    desc:'신기한 식물이 가득한 온실이에요. 생태연못과 정원도 근처에 있어요.' },
+  { id:'back-gate', name:'후문', zone:'gate', lat:37.55160, lon:127.08905, emoji:'🚪',
+    desc:'아차산역 쪽 출입구예요. 놀이동산과 식물원이 가까워요.' },
+];
+
+/* ─── 좌표 변환 ─── */
+const prj = (lat, lon) => [
+  (lon - MAP.LON_MIN) / (MAP.LON_MAX - MAP.LON_MIN) * MAP.VIEW_W,
+  (MAP.LAT_MAX - lat) / (MAP.LAT_MAX - MAP.LAT_MIN) * MAP.VIEW_H,
+];
+// 1 viewBox 단위 ≈ 0.83m (동서 1300m / 1580)
+const M2U = MAP.VIEW_W / 1300;
+
+function inPark(x, y, bufferM = 80) {
+  const b = bufferM * M2U;
+  if (x < -b || y < -b || x > MAP.VIEW_W + b || y > MAP.VIEW_H + b) return false;
+  // point-in-polygon (ray casting)
+  const pts = MAP.boundaryPts;
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  if (inside) return true;
+  // 버퍼: 경계까지 최단거리
+  let min = Infinity;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+    const dx = x2 - x1, dy = y2 - y1;
+    const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy || 1)));
+    const px = x1 + t * dx - x, py = y1 + t * dy - y;
+    min = Math.min(min, px * px + py * py);
+  }
+  return Math.sqrt(min) <= b;
+}
+
+/* ─── SVG 지도 구성 ─── */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('map');
+// 화면 비율에 맞는 창(window)을 viewBox로 사용 — 세로 폰에서 공원이 화면 높이에 꽉 차게
+let winW = MAP.VIEW_W, winH = MAP.VIEW_H;
+function fitViewBox() {
+  const r = svg.getBoundingClientRect();
+  winH = MAP.VIEW_H;
+  winW = Math.round(winH * r.width / r.height);
+  if (winW > MAP.VIEW_W) {
+    winW = MAP.VIEW_W;
+    winH = Math.round(winW * r.height / r.width);
+  }
+  svg.setAttribute('viewBox', `0 0 ${winW} ${winH}`);
+}
+
+const el = (tag, attrs, parent) => {
+  const n = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  (parent || svg).appendChild(n);
+  return n;
+};
+
+const world = el('g', { id: 'world' });
+
+// 바깥 배경 + 공원 잔디
+el('rect', { x: -2000, y: -2000, width: MAP.VIEW_W + 4000, height: MAP.VIEW_H + 4000, fill: '#c3cfc4' }, world);
+el('path', { d: MAP.boundary, fill: '#d9ecbc', stroke: '#8fbc74', 'stroke-width': 8 }, world);
+
+// 면 레이어: 잔디 → 숲 → 경기장·주차장 → 놀이동산·동물사·놀이터
+for (const d of MAP.lawns) el('path', { d, fill: '#c8e6a6', opacity: 0.9 }, world);
+for (const d of MAP.woods) el('path', { d, fill: '#a9d68b', opacity: 0.95 }, world);
+for (const d of MAP.pitches) el('path', { d, fill: '#9fd6b4', stroke: '#7fbf9a', 'stroke-width': 2 }, world);
+for (const d of MAP.parkings) el('path', { d, fill: '#e3e0d5', stroke: '#cfcabb', 'stroke-width': 1.5 }, world);
+for (const d of MAP.themepark) el('path', { d, fill: '#ffd9e8', opacity: 0.75, stroke: '#f2a9c8', 'stroke-width': 3 }, world);
+for (const d of MAP.zooAreas) el('path', { d, fill: '#f5deb8', opacity: 0.85, stroke: '#dcbe8a', 'stroke-width': 2 }, world);
+for (const d of MAP.playgrounds) el('path', { d, fill: '#ffe9b8', stroke: '#eccf8e', 'stroke-width': 2 }, world);
+
+// 보행로 (케이싱 + 본선)
+for (const d of MAP.paths) el('path', { d, fill: 'none', stroke: '#c9bfa0', 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, world);
+for (const d of MAP.paths) el('path', { d, fill: 'none', stroke: '#fdf6e3', 'stroke-width': 4.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, world);
+
+// 건물
+for (const d of MAP.buildings) el('path', { d, fill: '#f0e2c8', stroke: '#d8c5a0', 'stroke-width': 1.5 }, world);
+
+// 물 (연못·물놀이장)
+for (const d of MAP.water) el('path', { d, fill: '#a5d8ef', stroke: '#79c2e4', 'stroke-width': 2.5 }, world);
+
+// 장식 나무
+const TREES = [
+  [37.5527,127.0760],[37.5522,127.0800],[37.5518,127.0856],[37.5513,127.0880],
+  [37.5462,127.0760],[37.5457,127.0795],[37.5455,127.0850],[37.5460,127.0880],
+  [37.5470,127.0755],[37.5502,127.0868],[37.5477,127.0866],[37.5488,127.0797],
+  [37.5510,127.0790],[37.5468,127.0812],[37.5450,127.0815],[37.5495,127.0872],
+];
+for (const [la, lo] of TREES) {
+  const [x, y] = prj(la, lo);
+  if (x > 10 && x < MAP.VIEW_W - 10 && y > 10 && y < MAP.VIEW_H - 10) {
+    const t = el('text', { x, y, 'font-size': 26, 'text-anchor': 'middle' }, world);
+    t.textContent = '🌳';
+  }
+}
+
+// 내 위치 점 (핀보다 아래 레이어)
+const meG = el('g', { id: 'me', visibility: 'hidden' }, world);
+const meAcc = el('circle', { cx: 0, cy: 0, r: 0, fill: '#3b82f640' }, meG);
+el('circle', { cx: 0, cy: 0, r: 10, fill: '#3b82f6', stroke: '#fff', 'stroke-width': 4 }, meG);
+
+// 랜드마크 핀
+const pinsG = el('g', { id: 'pins' }, world);
+const pinEls = [];
+for (const lm of LANDMARKS) {
+  const [x, y] = prj(lm.lat, lm.lon);
+  const g = el('g', { class: 'pin', transform: `translate(${x} ${y})`, cursor: 'pointer' }, pinsG);
+  const inner = el('g', {}, g);
+  el('circle', { cx: 0, cy: 0, r: 26, fill: '#ffffff', stroke: ZONES[lm.zone].color, 'stroke-width': 5 }, inner);
+  const t = el('text', { x: 0, y: 9, 'font-size': 26, 'text-anchor': 'middle' }, inner);
+  t.textContent = lm.emoji;
+  const label = el('text', {
+    x: 0, y: lm.labelTop ? -38 : 48, 'font-size': 17, 'font-weight': 700, 'text-anchor': 'middle',
+    fill: '#3a5540', stroke: '#ffffff', 'stroke-width': 4, 'paint-order': 'stroke',
+  }, inner);
+  label.textContent = lm.name;
+  g.addEventListener('click', (e) => { e.stopPropagation(); openSheet(lm); });
+  pinEls.push({ lm, g, inner, x, y });
+}
+
+/* ─── 팬/줌 ─── */
+let tx = 0, ty = 0, k = 1;
+const KMIN = 1, KMAX = 6;
+
+function clampPan() {
+  // 보이는 창(winW×winH)이 공원 컨텐츠(k배) 밖으로 나가지 않게
+  tx = Math.min(0, Math.max(winW - MAP.VIEW_W * k, tx));
+  ty = Math.min(0, Math.max(winH - MAP.VIEW_H * k, ty));
+}
+function applyTf() {
+  clampPan();
+  world.setAttribute('transform', `translate(${tx} ${ty}) scale(${k})`);
+  const ps = Math.max(0.4, Math.min(1, 1 / Math.sqrt(k)));
+  for (const p of pinEls) p.inner.setAttribute('transform', `scale(${ps})`);
+}
+const toView = (cx, cy) => {
+  const pt = new DOMPoint(cx, cy).matrixTransform(svg.getScreenCTM().inverse());
+  return [pt.x, pt.y];
+};
+function zoomAt(cx, cy, factor) {
+  const [vx, vy] = toView(cx, cy);
+  const nk = Math.max(KMIN, Math.min(KMAX, k * factor));
+  const f = nk / k;
+  tx = vx - (vx - tx) * f;
+  ty = vy - (vy - ty) * f;
+  k = nk;
+  applyTf();
+}
+
+const pointers = new Map();
+let lastDist = 0, moved = 0;
+svg.addEventListener('pointerdown', (e) => {
+  try { svg.setPointerCapture(e.pointerId); } catch (_) { /* 합성 이벤트 등 캡처 불가 시 무시 */ }
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  moved = 0;
+});
+svg.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 1) {
+    const [vx1, vy1] = toView(prev[0], prev[1]);
+    const [vx2, vy2] = toView(e.clientX, e.clientY);
+    tx += vx2 - vx1; ty += vy2 - vy1;
+    moved += Math.abs(e.clientX - prev[0]) + Math.abs(e.clientY - prev[1]);
+    applyTf();
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const dist = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (lastDist > 0) zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, dist / lastDist);
+    lastDist = dist;
+    moved += 10;
+  }
+});
+const endPointer = (e) => {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) lastDist = 0;
+  // 데모 모드: 이동 없이 톡 누르면 가상 위치 이동
+  if (demo && moved < 8 && e.target.closest && !e.target.closest('.pin')) {
+    const [vx, vy] = toView(e.clientX, e.clientY);
+    const wx = (vx - tx) / k, wy = (vy - ty) / k;
+    if (inPark(wx, wy, 20)) setMe(wx, wy, 0);
+  }
+};
+svg.addEventListener('pointerup', endPointer);
+svg.addEventListener('pointercancel', endPointer);
+svg.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 0.87);
+}, { passive: false });
+
+fitViewBox();
+// 초기 뷰: 정문(공원 시작점) 부근이 보이게
+tx = winW / 2 - prj(37.54939, 127.07632)[0];
+ty = winH / 2 - prj(37.54939, 127.07632)[1];
+applyTf();
+window.addEventListener('resize', () => { fitViewBox(); applyTf(); });
+
+/* ─── 바텀시트 ─── */
+const sheetWrap = document.getElementById('sheetWrap');
+const seen = new Set(JSON.parse(localStorage.getItem('quest.seen.v1') || '[]'));
+const hudCount = document.getElementById('hudCount');
+const updateHud = () => { hudCount.textContent = seen.size; };
+updateHud();
+
+function openSheet(lm) {
+  document.getElementById('shEmo').textContent = lm.emoji;
+  document.getElementById('shName').textContent = lm.name;
+  const z = document.getElementById('shZone');
+  z.textContent = ZONES[lm.zone].label;
+  z.style.background = ZONES[lm.zone].color;
+  document.getElementById('shDesc').textContent = lm.desc;
+  sheetWrap.classList.add('open');
+  if (!seen.has(lm.id)) {
+    seen.add(lm.id);
+    localStorage.setItem('quest.seen.v1', JSON.stringify([...seen]));
+    updateHud();
+  }
+}
+document.getElementById('sheetBack').addEventListener('click', () => sheetWrap.classList.remove('open'));
+
+/* ─── 토스트 ─── */
+const toastEl = document.getElementById('toast');
+let toastTimer;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
+}
+
+/* ─── 내 위치 / 데모 모드 ─── */
+const locBtn = document.getElementById('locBtn');
+const banner = document.getElementById('banner');
+const demoTag = document.getElementById('demoTag');
+let watching = null, demo = false, lastFix = null, deniedOnce = false;
+
+function setMe(x, y, accM) {
+  meG.setAttribute('visibility', 'visible');
+  meG.setAttribute('transform', `translate(${x} ${y})`);
+  meAcc.setAttribute('r', Math.max(0, accM > 50 ? accM * M2U : 0));
+}
+
+function onFix(pos) {
+  const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+  const now = pos.timestamp;
+  if (lastFix) {
+    const dt = (now - lastFix.t) / 1000;
+    const dm = Math.hypot(lat - lastFix.lat, lon - lastFix.lon) * 111000;
+    if (dt > 0 && dm / dt > 10) return; // 10m/s 초과 점프 폐기
+  }
+  lastFix = { lat, lon, t: now };
+  const [x, y] = prj(lat, lon);
+  if (inPark(x, y)) {
+    banner.classList.remove('show');
+    setMe(x, y, accuracy);
+  } else {
+    banner.classList.add('show');
+    meG.setAttribute('visibility', 'hidden');
+  }
+}
+
+locBtn.addEventListener('click', () => {
+  if (demo) { exitDemo(); return; }
+  if (watching !== null) {
+    navigator.geolocation.clearWatch(watching);
+    watching = null;
+    locBtn.classList.remove('on');
+    meG.setAttribute('visibility', 'hidden');
+    return;
+  }
+  if (!('geolocation' in navigator)) { toast('이 기기는 위치를 지원하지 않아요'); return; }
+  watching = navigator.geolocation.watchPosition(
+    (pos) => { locBtn.classList.add('on'); onFix(pos); },
+    (err) => {
+      navigator.geolocation.clearWatch(watching);
+      watching = null;
+      locBtn.classList.remove('on');
+      if (err.code === err.PERMISSION_DENIED) {
+        if (!deniedOnce) { toast('위치 권한 없이도 지도는 자유롭게 볼 수 있어요'); deniedOnce = true; }
+        banner.classList.add('show');
+      } else {
+        toast('위치를 찾지 못했어요. 잠시 후 다시 시도해 주세요');
+      }
+    },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 }
+  );
+});
+
+document.getElementById('demoBtn').addEventListener('click', () => {
+  demo = true;
+  banner.classList.remove('show');
+  demoTag.classList.add('show');
+  locBtn.classList.add('on');
+  const [x, y] = prj(37.54939, 127.07632); // 정문에서 시작
+  setMe(x, y, 0);
+  toast('데모 모드: 지도를 톡 누르면 이동해요');
+});
+function exitDemo() {
+  demo = false;
+  demoTag.classList.remove('show');
+  locBtn.classList.remove('on');
+  meG.setAttribute('visibility', 'hidden');
+}
+
+/* ─── 코치마크 ─── */
+const coach = document.getElementById('coach');
+if (!localStorage.getItem('quest.coach.v1')) coach.classList.add('show');
+document.getElementById('coachBtn').addEventListener('click', () => {
+  coach.classList.remove('show');
+  localStorage.setItem('quest.coach.v1', '1');
+});
+</script>
+</body>
+</html>
