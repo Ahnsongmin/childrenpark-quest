@@ -58,6 +58,13 @@
     box-shadow: 0 3px 10px rgba(0,0,0,.2);
   }
   #locBtn.on { background: #3b82f6; }
+  #walkBtn {
+    position: absolute; right: 14px; bottom: 152px; z-index: 5;
+    width: 48px; height: 48px; border-radius: 50%; border: 0;
+    background: #fff; font-size: 22px; cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,.2);
+  }
+  #walkBtn.on { background: #f5b83d; }
 
   /* 하단 진행 카드 */
   #hud {
@@ -80,6 +87,8 @@
   }
   @keyframes up { from { transform: translateY(40%); opacity: .4; } to { transform: none; opacity: 1; } }
   #sheet .grip { width: 40px; height: 4px; border-radius: 2px; background: #ddd; margin: 0 auto 12px; }
+  #sheet img { width: 100%; height: 150px; object-fit: cover; border-radius: 14px; margin-bottom: 12px; }
+  #shCredit { margin-top: 8px; font-size: 9px; color: #b3bdb5; }
   #sheet .row { display: flex; align-items: center; gap: 12px; }
   #sheet .emo {
     width: 52px; height: 52px; border-radius: 16px; background: #eef7e8;
@@ -142,6 +151,7 @@
   <div id="demoTag">🧪 데모 모드 — 지도를 톡 누르면 이동</div>
 
   <button id="locBtn" aria-label="내 위치">📍</button>
+  <button id="walkBtn" aria-label="산책 데모">🚶</button>
 
   <div id="hud">
     <span style="font-size:22px">🗺️</span>
@@ -154,12 +164,14 @@
     <div id="sheetBack"></div>
     <div id="sheet">
       <div class="grip"></div>
+      <img id="shPhoto" alt="" style="display:none">
       <div class="row">
         <div class="emo" id="shEmo"></div>
         <div><h2 id="shName"></h2><span class="zone" id="shZone"></span></div>
       </div>
       <p id="shDesc"></p>
       <div class="soon">🎯 곧 이곳에서 미션이 열려요! (준비 중)</div>
+      <div id="shCredit"></div>
     </div>
   </div>
 
@@ -279,8 +291,12 @@ const el = (tag, attrs, parent) => {
 
 const world = el('g', { id: 'world' });
 
-// 바깥 배경 + 공원 잔디
-el('rect', { x: -2000, y: -2000, width: MAP.VIEW_W + 4000, height: MAP.VIEW_H + 4000, fill: '#c3cfc4' }, world);
+// 바깥 배경(도시) + 주변 도로 + 공원 잔디
+el('rect', { x: -2000, y: -2000, width: MAP.VIEW_W + 4000, height: MAP.VIEW_H + 4000, fill: '#e3e0d8' }, world);
+for (const d of MAP.roadsMinor) el('path', { d, fill: 'none', stroke: '#d3cfc5', 'stroke-width': 9, 'stroke-linecap': 'round' }, world);
+for (const d of MAP.roadsMinor) el('path', { d, fill: 'none', stroke: '#f7f5f0', 'stroke-width': 6, 'stroke-linecap': 'round' }, world);
+for (const d of MAP.roadsMajor) el('path', { d, fill: 'none', stroke: '#e8c98a', 'stroke-width': 16, 'stroke-linecap': 'round' }, world);
+for (const d of MAP.roadsMajor) el('path', { d, fill: 'none', stroke: '#fbe7b8', 'stroke-width': 11, 'stroke-linecap': 'round' }, world);
 el('path', { d: MAP.boundary, fill: '#d9ecbc', stroke: '#8fbc74', 'stroke-width': 8 }, world);
 
 // 면 레이어: 잔디 → 숲 → 경기장·주차장 → 놀이동산·동물사·놀이터
@@ -296,42 +312,62 @@ for (const d of MAP.playgrounds) el('path', { d, fill: '#ffe9b8', stroke: '#eccf
 for (const d of MAP.paths) el('path', { d, fill: 'none', stroke: '#c9bfa0', 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, world);
 for (const d of MAP.paths) el('path', { d, fill: 'none', stroke: '#fdf6e3', 'stroke-width': 4.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, world);
 
-// 건물
+// 건물 (그림자 + 본체)
+for (const d of MAP.buildings) el('path', { d, fill: '#00000014', transform: 'translate(3 4)' }, world);
 for (const d of MAP.buildings) el('path', { d, fill: '#f0e2c8', stroke: '#d8c5a0', 'stroke-width': 1.5 }, world);
 
 // 물 (연못·물놀이장)
 for (const d of MAP.water) el('path', { d, fill: '#a5d8ef', stroke: '#79c2e4', 'stroke-width': 2.5 }, world);
 
-// 장식 나무
-const TREES = [
-  [37.5527,127.0760],[37.5522,127.0800],[37.5518,127.0856],[37.5513,127.0880],
-  [37.5462,127.0760],[37.5457,127.0795],[37.5455,127.0850],[37.5460,127.0880],
-  [37.5470,127.0755],[37.5502,127.0868],[37.5477,127.0866],[37.5488,127.0797],
-  [37.5510,127.0790],[37.5468,127.0812],[37.5450,127.0815],[37.5495,127.0872],
-];
-for (const [la, lo] of TREES) {
-  const [x, y] = prj(la, lo);
-  if (x > 10 && x < MAP.VIEW_W - 10 && y > 10 && y < MAP.VIEW_H - 10) {
-    const t = el('text', { x, y, 'font-size': 26, 'text-anchor': 'middle' }, world);
-    t.textContent = '🌳';
-  }
+// 나무 (숲 폴리곤 내부 자동 배치)
+for (const [x, y, s] of MAP.trees) {
+  const t = el('text', { x, y, 'font-size': s, 'text-anchor': 'middle' }, world);
+  t.textContent = '🌳';
 }
 
-// 내 위치 점 (핀보다 아래 레이어)
+// 산책 데모 경로 (은은한 점선 — 산책 모드에서만 표시)
+const routeEl = el('path', {
+  d: 'M' + MAP.walkRoute.map(p => p.join(' ')).join('L'),
+  fill: 'none', stroke: '#f5b83d', 'stroke-width': 6, 'stroke-dasharray': '2 14',
+  'stroke-linecap': 'round', opacity: 0, id: 'routeLine',
+}, world);
+
+// 내 위치 아바타 (핀보다 아래 레이어)
 const meG = el('g', { id: 'me', visibility: 'hidden' }, world);
 const meAcc = el('circle', { cx: 0, cy: 0, r: 0, fill: '#3b82f640' }, meG);
-el('circle', { cx: 0, cy: 0, r: 10, fill: '#3b82f6', stroke: '#fff', 'stroke-width': 4 }, meG);
+const pulse = el('circle', { cx: 0, cy: 0, r: 14, fill: 'none', stroke: '#3b82f6', 'stroke-width': 3 }, meG);
+el('animate', { attributeName: 'r', values: '14;34', dur: '1.6s', repeatCount: 'indefinite' }, pulse);
+el('animate', { attributeName: 'opacity', values: '0.7;0', dur: '1.6s', repeatCount: 'indefinite' }, pulse);
+el('ellipse', { cx: 0, cy: 12, rx: 13, ry: 5, fill: '#00000022' }, meG);
+const meBody = el('g', {}, meG);
+const meEmoji = el('text', { x: 0, y: 6, 'font-size': 36, 'text-anchor': 'middle' }, meBody);
+meEmoji.textContent = '🚶';
 
-// 랜드마크 핀
+// 랜드마크 핀 (실사진 있으면 원형 사진, 없으면 이모지)
+const PHOTOS = new Set(['main-gate', 'sangsang', 'fountain', 'rides', 'botanic', 'herbivore', 'sea', 'tropical']);
+const CREDITS = {
+  'main-gate': 'Peachy1234', sangsang: 'Peachy1234', fountain: 'Peachy1234', rides: 'Peachy1234',
+  botanic: 'Peachy1234', sea: 'Peachy1234', tropical: 'Peachy1234', herbivore: 'Handan99',
+};
+const defs = el('defs', {});
 const pinsG = el('g', { id: 'pins' }, world);
 const pinEls = [];
 for (const lm of LANDMARKS) {
   const [x, y] = prj(lm.lat, lm.lon);
   const g = el('g', { class: 'pin', transform: `translate(${x} ${y})`, cursor: 'pointer' }, pinsG);
   const inner = el('g', {}, g);
-  el('circle', { cx: 0, cy: 0, r: 26, fill: '#ffffff', stroke: ZONES[lm.zone].color, 'stroke-width': 5 }, inner);
-  const t = el('text', { x: 0, y: 9, 'font-size': 26, 'text-anchor': 'middle' }, inner);
-  t.textContent = lm.emoji;
+  el('circle', { cx: 0, cy: 0, r: 27, fill: '#ffffff', stroke: ZONES[lm.zone].color, 'stroke-width': 5 }, inner);
+  if (PHOTOS.has(lm.id)) {
+    const clip = el('clipPath', { id: `clip-${lm.id}` }, defs);
+    el('circle', { cx: 0, cy: 0, r: 24, fill: '#000' }, clip);
+    el('image', {
+      href: `img/${lm.id}.jpg`, x: -24, y: -24, width: 48, height: 48,
+      'clip-path': `url(#clip-${lm.id})`, preserveAspectRatio: 'xMidYMid slice',
+    }, inner);
+  } else {
+    const t = el('text', { x: 0, y: 9, 'font-size': 26, 'text-anchor': 'middle' }, inner);
+    t.textContent = lm.emoji;
+  }
   const label = el('text', {
     x: 0, y: lm.labelTop ? -38 : 48, 'font-size': 17, 'font-weight': 700, 'text-anchor': 'middle',
     fill: '#3a5540', stroke: '#ffffff', 'stroke-width': 4, 'paint-order': 'stroke',
@@ -340,6 +376,7 @@ for (const lm of LANDMARKS) {
   g.addEventListener('click', (e) => { e.stopPropagation(); openSheet(lm); });
   pinEls.push({ lm, g, inner, x, y });
 }
+world.appendChild(meG); // 아바타는 핀보다 위 레이어
 
 /* ─── 팬/줌 ─── */
 let tx = 0, ty = 0, k = 1;
@@ -381,6 +418,7 @@ svg.addEventListener('pointermove', (e) => {
   if (!pointers.has(e.pointerId)) return;
   const prev = pointers.get(e.pointerId);
   pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (walking) { moved += 10; return; } // 산책 중엔 카메라 고정
   if (pointers.size === 1) {
     const [vx1, vy1] = toView(prev[0], prev[1]);
     const [vx2, vy2] = toView(e.clientX, e.clientY);
@@ -427,6 +465,16 @@ const updateHud = () => { hudCount.textContent = seen.size; };
 updateHud();
 
 function openSheet(lm) {
+  const ph = document.getElementById('shPhoto');
+  const cr = document.getElementById('shCredit');
+  if (PHOTOS.has(lm.id)) {
+    ph.src = `img/${lm.id}.jpg`;
+    ph.style.display = 'block';
+    cr.textContent = `사진: ${CREDITS[lm.id]}, Wikimedia Commons (CC BY-SA)`;
+  } else {
+    ph.style.display = 'none';
+    cr.textContent = '';
+  }
   document.getElementById('shEmo').textContent = lm.emoji;
   document.getElementById('shName').textContent = lm.name;
   const z = document.getElementById('shZone');
@@ -458,10 +506,13 @@ const banner = document.getElementById('banner');
 const demoTag = document.getElementById('demoTag');
 let watching = null, demo = false, lastFix = null, deniedOnce = false;
 
-function setMe(x, y, accM) {
+function setMe(x, y, accM, dx) {
   meG.setAttribute('visibility', 'visible');
   meG.setAttribute('transform', `translate(${x} ${y})`);
   meAcc.setAttribute('r', Math.max(0, accM > 50 ? accM * M2U : 0));
+  if (dx !== undefined && Math.abs(dx) > 0.01) {
+    meBody.setAttribute('transform', `scale(${dx < 0 ? -1 : 1} 1)`);
+  }
 }
 
 function onFix(pos) {
@@ -525,6 +576,104 @@ function exitDemo() {
   locBtn.classList.remove('on');
   meG.setAttribute('visibility', 'hidden');
 }
+
+/* ─── 산책 데모 (포켓몬GO식 자동 이동) ─── */
+const walkBtn = document.getElementById('walkBtn');
+const R = MAP.walkRoute;
+const cum = [0];
+for (let i = 1; i < R.length; i++) {
+  cum.push(cum[i - 1] + Math.hypot(R[i][0] - R[i - 1][0], R[i][1] - R[i - 1][1]));
+}
+const ROUTE_LEN = cum[cum.length - 1];
+const WALK_SPEED = 26; // 유닛/초 (실지도 기준 ≈ 도보 5배속)
+
+function posAt(s) {
+  s = Math.max(0, Math.min(ROUTE_LEN, s));
+  let i = 1;
+  while (i < cum.length - 1 && cum[i] < s) i++;
+  const t = (s - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
+  const x = R[i - 1][0] + (R[i][0] - R[i - 1][0]) * t;
+  const y = R[i - 1][1] + (R[i][1] - R[i - 1][1]) * t;
+  return { x, y, dx: R[i][0] - R[i - 1][0] };
+}
+
+let walking = false, walkS = 0, walkRaf = null, lastTs = 0, recording = false;
+const walkVisited = new Set();
+
+function pinPop(p) {
+  const ring = el('circle', { cx: p.x, cy: p.y, r: 27, fill: 'none', stroke: ZONES[p.lm.zone].color, 'stroke-width': 6 }, world);
+  const a1 = el('animate', { attributeName: 'r', values: '27;70', dur: '0.9s', fill: 'freeze' }, ring);
+  el('animate', { attributeName: 'opacity', values: '1;0', dur: '0.9s', fill: 'freeze' }, ring);
+  a1.beginElement && a1.beginElement();
+  setTimeout(() => ring.remove(), 1000);
+}
+
+function renderWalk() {
+  const p = posAt(walkS);
+  // 걸음 통통 효과
+  const bob = Math.sin(walkS * 0.9) * 2.5;
+  setMe(p.x, p.y + bob, 0, p.dx);
+  tx = winW / 2 - p.x * k;
+  ty = winH / 2 - p.y * k;
+  applyTf();
+  for (const pe of pinEls) {
+    if (walkVisited.has(pe.lm.id)) continue;
+    if (Math.hypot(pe.x - p.x, pe.y - p.y) < 45) {
+      walkVisited.add(pe.lm.id);
+      pinPop(pe);
+      toast(`${pe.lm.emoji} ${pe.lm.name} 도착!`);
+      if (!seen.has(pe.lm.id)) {
+        seen.add(pe.lm.id);
+        localStorage.setItem('quest.seen.v1', JSON.stringify([...seen]));
+        updateHud();
+      }
+    }
+  }
+}
+
+function walkFrame(ts) {
+  if (!walking) return;
+  if (lastTs) walkS += Math.min(0.1, (ts - lastTs) / 1000) * WALK_SPEED;
+  lastTs = ts;
+  renderWalk();
+  if (walkS >= ROUTE_LEN) { stopWalk(); toast('🎉 산책 완주! 랜드마크를 모두 지나왔어요'); return; }
+  walkRaf = requestAnimationFrame(walkFrame);
+}
+
+function startWalk(rec) {
+  recording = !!rec;
+  walking = true;
+  walkS = 0;
+  lastTs = 0;
+  walkVisited.clear();
+  exitDemo();
+  if (watching !== null) { navigator.geolocation.clearWatch(watching); watching = null; locBtn.classList.remove('on'); }
+  walkBtn.classList.add('on');
+  walkBtn.textContent = '⏹';
+  routeEl.setAttribute('opacity', 0.85);
+  k = 2.6;
+  renderWalk();
+  if (!recording) walkRaf = requestAnimationFrame(walkFrame);
+}
+
+function stopWalk() {
+  walking = false;
+  if (walkRaf) cancelAnimationFrame(walkRaf);
+  walkBtn.classList.remove('on');
+  walkBtn.textContent = '🚶';
+  routeEl.setAttribute('opacity', 0);
+  meG.setAttribute('visibility', 'hidden');
+}
+
+walkBtn.addEventListener('click', () => { walking ? stopWalk() : startWalk(false); });
+
+// 영상 캡처용 결정적 훅 (?rec=1 로 열면 자동재생 없이 외부에서 프레임 지정)
+window.__walk = {
+  len: ROUTE_LEN,
+  to(s) { if (!walking) startWalk(true); walkS = s; renderWalk(); },
+  stop: stopWalk,
+};
+if (new URLSearchParams(location.search).get('walk') === '1') startWalk(false);
 
 /* ─── 코치마크 ─── */
 const coach = document.getElementById('coach');
