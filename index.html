@@ -771,7 +771,7 @@ const SB_URL = 'https://cnvezqmnxsmdrqhagmrq.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNudmV6cW1ueHNtZHJxaGFnbXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NDA3NDUsImV4cCI6MjA5OTUxNjc0NX0.I_C7qe5WLGGmeNryrbjalRXxlQ_LNqnDG4GYKWRf7G8';
 const famBtn = document.getElementById('famBtn');
 const famWrap = document.getElementById('famWrap');
-let sb = null, famCh = null, famCode = null, lastShare = 0;
+let sb = null, famCh = null, famCode = null, lastShare = 0, famHb = null;
 const myId = (localStorage.getItem('quest.myid') || (() => {
   const v = Math.random().toString(36).slice(2, 10);
   localStorage.setItem('quest.myid', v);
@@ -870,8 +870,12 @@ function famJoin(code) {
       document.getElementById('famCodeShow').textContent = famCode;
       renderFamList();
       toast(`가족 코드 ${famCode} 연결됐어요`);
-      const me = myPos();
-      if (me) { lastShare = 0; shareMyPos(me[0], me[1]); }
+      // 4초마다 내 위치 재전송 — 늦게 들어온 가족도 곧바로 나를 봄
+      clearInterval(famHb);
+      famHb = setInterval(() => {
+        const me = myPos();
+        if (me) { lastShare = 0; shareMyPos(me[0], me[1]); }
+      }, 4000);
     } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
       toast('연결에 실패했어요. 잠시 후 다시 시도해 주세요');
       famLeave(false);
@@ -880,6 +884,8 @@ function famJoin(code) {
 }
 
 function famLeave(ui = true) {
+  clearInterval(famHb);
+  famHb = null;
   if (famCh) { famCh.unsubscribe(); famCh = null; }
   famCode = null;
   for (const m of members.values()) m.g.remove();
