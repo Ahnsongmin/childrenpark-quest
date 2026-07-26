@@ -65,6 +65,50 @@
     box-shadow: 0 3px 10px rgba(0,0,0,.2);
   }
   #walkBtn.on { background: #f5b83d; }
+  #famBtn {
+    position: absolute; right: 14px; bottom: 208px; z-index: 5;
+    width: 48px; height: 48px; border-radius: 50%; border: 0;
+    background: #fff; font-size: 22px; cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,.2);
+  }
+  #famBtn.on { background: #7ed695; }
+
+  /* 가족 공유 모달 */
+  #famWrap { position: absolute; inset: 0; z-index: 12; display: none; }
+  #famWrap.open { display: block; }
+  #famBack { position: absolute; inset: 0; background: rgba(0,0,0,.3); }
+  #famModal {
+    position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-52%);
+    background: #fff; border-radius: 20px; padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3);
+  }
+  #famModal h3 { font-size: 17px; color: #2e6b34; }
+  #famModal .sub { font-size: 12px; color: #667; line-height: 1.5; margin-top: 6px; }
+  #famModal .who { display: flex; align-items: center; gap: 8px; margin: 14px 0 10px; font-size: 13px; color: #556; }
+  #famModal .who button {
+    width: 42px; height: 42px; border-radius: 12px; border: 2px solid #e2e8e2;
+    background: #fff; font-size: 22px; cursor: pointer;
+  }
+  #famModal .who button.sel { border-color: #2e6b34; background: #eef7e8; }
+  #famModal .big {
+    width: 100%; border: 0; border-radius: 12px; background: #2e6b34; color: #fff;
+    font-size: 14px; font-weight: 700; padding: 12px; cursor: pointer; margin-top: 4px;
+  }
+  #famModal .big.off { background: #b5544a; }
+  #famModal .or { text-align: center; font-size: 11px; color: #99a; margin: 10px 0 6px; }
+  #famModal .joinrow { display: flex; gap: 8px; }
+  #famModal .joinrow input {
+    flex: 1; border: 2px solid #e2e8e2; border-radius: 12px; padding: 10px 12px;
+    font-size: 16px; letter-spacing: 3px; text-transform: uppercase; min-width: 0;
+  }
+  #famModal .joinrow button {
+    border: 0; border-radius: 12px; background: #2e6b34; color: #fff;
+    font-weight: 700; padding: 0 18px; cursor: pointer;
+  }
+  #famModal .code { font-size: 13px; color: #556; margin-bottom: 10px; }
+  #famModal .code b { font-size: 22px; letter-spacing: 4px; color: #2e6b34; margin-left: 6px; }
+  #famList { font-size: 13px; color: #445; line-height: 1.9; margin-bottom: 8px; }
+  #famModal .priv { font-size: 10px; color: #a9b3aa; margin-top: 12px; line-height: 1.5; }
 
   /* 하단 진행 카드 */
   #hud {
@@ -152,6 +196,34 @@
 
   <button id="locBtn" aria-label="내 위치">📍</button>
   <button id="walkBtn" aria-label="산책 데모">🚶</button>
+  <button id="famBtn" aria-label="가족 함께 보기">👪</button>
+
+  <div id="famWrap">
+    <div id="famBack"></div>
+    <div id="famModal">
+      <h3>👪 가족 함께 보기</h3>
+      <p class="sub">초대코드로 연결하면 가족의 위치가 지도에 함께 표시돼요.<br>아이를 잃어버릴 걱정 없이 탐험하세요!</p>
+      <div class="who">
+        <span>나는</span>
+        <button data-e="👩">👩</button><button data-e="👨">👨</button>
+        <button data-e="🧒" class="sel">🧒</button><button data-e="🧓">🧓</button>
+      </div>
+      <div id="famStart">
+        <button class="big" id="famMake">새 초대코드 만들기</button>
+        <div class="or">또는</div>
+        <div class="joinrow">
+          <input id="famCode" maxlength="6" placeholder="코드 6자리" autocomplete="off">
+          <button id="famJoin">참여</button>
+        </div>
+      </div>
+      <div id="famOn" style="display:none">
+        <div class="code">코드 <b id="famCodeShow"></b></div>
+        <div id="famList"></div>
+        <button class="big off" id="famLeave">공유 끝내기</button>
+      </div>
+      <p class="priv">위치는 같은 코드를 아는 가족끼리만 실시간으로 공유되고, 어디에도 저장되지 않아요.</p>
+    </div>
+  </div>
 
   <div id="hud">
     <span style="font-size:22px">🗺️</span>
@@ -189,6 +261,7 @@
 </div>
 
 <script src="mapdata.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
 
@@ -332,16 +405,78 @@ const routeEl = el('path', {
   'stroke-linecap': 'round', opacity: 0, id: 'routeLine',
 }, world);
 
-// 내 위치 아바타 (핀보다 아래 레이어)
+// 내 위치 아바타 — 방향별(앞·뒤·옆) 커스텀 캐릭터
 const meG = el('g', { id: 'me', visibility: 'hidden' }, world);
 const meAcc = el('circle', { cx: 0, cy: 0, r: 0, fill: '#3b82f640' }, meG);
 const pulse = el('circle', { cx: 0, cy: 0, r: 14, fill: 'none', stroke: '#3b82f6', 'stroke-width': 3 }, meG);
 el('animate', { attributeName: 'r', values: '14;34', dur: '1.6s', repeatCount: 'indefinite' }, pulse);
 el('animate', { attributeName: 'opacity', values: '0.7;0', dur: '1.6s', repeatCount: 'indefinite' }, pulse);
-el('ellipse', { cx: 0, cy: 12, rx: 13, ry: 5, fill: '#00000022' }, meG);
+// 바라보는 방향 콘 (포켓몬GO식) — 북쪽 기준 시계방향 회전
+const headingCone = el('path', {
+  d: 'M0 0 L-17 -36 A 40 40 0 0 1 17 -36 Z',
+  fill: '#3b82f6', opacity: 0, 'pointer-events': 'none',
+}, meG);
+el('ellipse', { cx: 0, cy: 14, rx: 12, ry: 4.5, fill: '#00000022' }, meG);
 const meBody = el('g', {}, meG);
-const meEmoji = el('text', { x: 0, y: 6, 'font-size': 36, 'text-anchor': 'middle' }, meBody);
-meEmoji.textContent = '🚶';
+
+const C = { skin: '#f8c89c', hair: '#5b3d26', shirt: '#f97316', pants: '#3b5bd1', shoe: '#333a44' };
+
+function buildAvatar(view) { // view: 'front' | 'back' | 'side' (side는 오른쪽 보기)
+  const g = el('g', { visibility: 'hidden' }, meBody);
+  const limbs = {};
+  if (view === 'side') {
+    limbs.armB = el('rect', { x: -2, y: -7, width: 4, height: 11, rx: 2, fill: '#d95f0e' }, g);
+    limbs.legB = el('rect', { x: -2, y: 2, width: 4.6, height: 12, rx: 2.2, fill: '#2c46a8' }, g);
+    el('ellipse', { cx: 0, cy: -3, rx: 5.5, ry: 7.5, fill: C.shirt }, g);   // 몸통
+    limbs.legF = el('rect', { x: -2.3, y: 2, width: 4.6, height: 12, rx: 2.2, fill: C.pants }, g);
+    el('circle', { cx: 1, cy: -14, r: 7, fill: C.skin }, g);                 // 머리(진행방향 앞쪽)
+    el('path', { d: 'M-6 -15 A7 7 0 0 1 6 -19 L 5 -13 A 5.5 5.5 0 0 0 -5.5 -12 Z', fill: C.hair }, g); // 뒷머리
+    limbs.armF = el('rect', { x: -1.6, y: -7, width: 4, height: 11, rx: 2, fill: C.shirt }, g);
+  } else {
+    const face = view === 'front';
+    limbs.legL = el('rect', { x: -5, y: 2, width: 4.4, height: 12, rx: 2.2, fill: C.pants }, g);
+    limbs.legR = el('rect', { x: 0.6, y: 2, width: 4.4, height: 12, rx: 2.2, fill: C.pants }, g);
+    el('ellipse', { cx: 0, cy: -3, rx: 6.5, ry: 7.5, fill: C.shirt }, g);
+    limbs.armL = el('rect', { x: -9, y: -7, width: 3.6, height: 11, rx: 1.8, fill: face ? C.shirt : '#d95f0e' }, g);
+    limbs.armR = el('rect', { x: 5.4, y: -7, width: 3.6, height: 11, rx: 1.8, fill: face ? C.shirt : '#d95f0e' }, g);
+    el('circle', { cx: 0, cy: -14, r: 7, fill: face ? C.skin : C.hair }, g); // 뒷모습은 머리카락만
+    if (face) {
+      el('path', { d: 'M-7 -16 A7 7 0 0 1 7 -16 L 7 -18 A 7 7 0 0 0 -7 -18 Z', fill: C.hair }, g);
+      el('circle', { cx: -2.5, cy: -14, r: 1.1, fill: '#333' }, g);          // 눈
+      el('circle', { cx: 2.5, cy: -14, r: 1.1, fill: '#333' }, g);
+      el('path', { d: 'M-1.6 -10.5 Q0 -9.2 1.6 -10.5', stroke: '#333', 'stroke-width': 0.9, fill: 'none', 'stroke-linecap': 'round' }, g); // 입
+    }
+  }
+  return { g, limbs };
+}
+
+const AV = { front: buildAvatar('front'), back: buildAvatar('back'), side: buildAvatar('side') };
+let avView = 'front';
+
+function setAvatar(view, flip, phase) {
+  if (view !== avView) {
+    AV[avView].g.setAttribute('visibility', 'hidden');
+    AV[view].g.setAttribute('visibility', 'visible');
+    avView = view;
+  }
+  meBody.setAttribute('transform', `scale(${flip ? -1 : 1} 1)`);
+  const L = AV[view].limbs;
+  const sw = Math.sin(phase) * 24; // 팔다리 스윙 각도
+  if (view === 'side') {
+    L.legF.setAttribute('transform', `rotate(${sw} 0 2)`);
+    L.legB.setAttribute('transform', `rotate(${-sw} 0 2)`);
+    L.armF.setAttribute('transform', `rotate(${-sw * 0.8} 0 -6)`);
+    L.armB.setAttribute('transform', `rotate(${sw * 0.8} 0 -6)`);
+  } else {
+    const st = Math.sin(phase) * 3; // 앞/뒷모습은 다리 위아래 스텝
+    L.legL.setAttribute('transform', `translate(0 ${-Math.max(0, st)})`);
+    L.legR.setAttribute('transform', `translate(0 ${-Math.max(0, -st)})`);
+    L.armL.setAttribute('transform', `rotate(${st * 4} -7 -6)`);
+    L.armR.setAttribute('transform', `rotate(${-st * 4} 7 -6)`);
+  }
+}
+AV.front.g.setAttribute('visibility', 'visible'); // 기본: 앞모습
+setAvatar('front', false, 0);
 
 // 랜드마크 핀 (실사진 있으면 원형 사진, 없으면 이모지)
 const PHOTOS = new Set(['main-gate', 'sangsang', 'fountain', 'rides', 'botanic', 'herbivore', 'sea', 'tropical']);
@@ -504,15 +639,59 @@ function toast(msg) {
 const locBtn = document.getElementById('locBtn');
 const banner = document.getElementById('banner');
 const demoTag = document.getElementById('demoTag');
-let watching = null, demo = false, lastFix = null, deniedOnce = false;
+let watching = null, demo = false, lastFix = null, deniedOnce = false, meLast = null, mePhase = 0;
 
-function setMe(x, y, accM, dx) {
+function setMe(x, y, accM) {
   meG.setAttribute('visibility', 'visible');
   meG.setAttribute('transform', `translate(${x} ${y})`);
   meAcc.setAttribute('r', Math.max(0, accM > 50 ? accM * M2U : 0));
-  if (dx !== undefined && Math.abs(dx) > 0.01) {
-    meBody.setAttribute('transform', `scale(${dx < 0 ? -1 : 1} 1)`);
+  shareMyPos(x, y);
+}
+
+// 진행 방향(dx,dy)에 맞는 모습 선택: 위=뒷모습, 아래=앞모습, 좌우=옆모습
+function faceDirection(dx, dy, phase) {
+  if (Math.abs(dy) > Math.abs(dx) * 1.2) {
+    setAvatar(dy < 0 ? 'back' : 'front', false, phase);
+  } else {
+    setAvatar('side', dx < 0, phase);
   }
+  setHeadingCone(Math.atan2(dx, -dy) * 180 / Math.PI); // 이동 방향으로 콘도 회전
+}
+
+/* ─── 나침반: 휴대폰이 바라보는 방향 (포켓몬GO식 콘) ─── */
+let lastMoveTs = 0;
+function setHeadingCone(deg) {
+  headingCone.setAttribute('transform', `rotate(${deg})`);
+  headingCone.setAttribute('opacity', 0.28);
+}
+function faceByHeading(deg) { // 정지 상태에서 폰 방향으로 몸도 돌리기
+  const h = ((deg % 360) + 360) % 360;
+  if (h >= 315 || h < 45) setAvatar('back', false, 0);        // 북쪽 = 뒷모습
+  else if (h < 135) setAvatar('side', false, 0);              // 동쪽 = 오른쪽 옆
+  else if (h < 225) setAvatar('front', false, 0);             // 남쪽 = 앞모습
+  else setAvatar('side', true, 0);                            // 서쪽 = 왼쪽 옆
+}
+function onHeading(e) {
+  let h = null;
+  if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading; // iOS
+  else if (typeof e.alpha === 'number' && (e.absolute || e.type === 'deviceorientationabsolute')) h = 360 - e.alpha; // Android
+  if (h === null || walking) return;
+  setHeadingCone(h);
+  if (Date.now() - lastMoveTs > 2000) faceByHeading(h); // 이동 중엔 이동 방향이 우선
+}
+let compassOn = false;
+async function enableCompass() {
+  if (compassOn) return;
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+      if (await DeviceOrientationEvent.requestPermission() !== 'granted') return; // iOS 권한
+      window.addEventListener('deviceorientation', onHeading);
+    } else {
+      window.addEventListener('deviceorientationabsolute', onHeading);
+      window.addEventListener('deviceorientation', onHeading);
+    }
+    compassOn = true;
+  } catch (_) { /* 미지원 기기 — 이동 방향 표시로 폴백 */ }
 }
 
 function onFix(pos) {
@@ -528,6 +707,15 @@ function onFix(pos) {
   if (inPark(x, y)) {
     banner.classList.remove('show');
     setMe(x, y, accuracy);
+    if (meLast) {
+      const mdx = x - meLast[0], mdy = y - meLast[1];
+      if (Math.hypot(mdx, mdy) > 2) {
+        mePhase += Math.hypot(mdx, mdy) * 0.35;
+        lastMoveTs = Date.now();
+        faceDirection(mdx, mdy, mePhase);
+      }
+    }
+    meLast = [x, y];
   } else {
     banner.classList.add('show');
     meG.setAttribute('visibility', 'hidden');
@@ -544,6 +732,7 @@ locBtn.addEventListener('click', () => {
     return;
   }
   if (!('geolocation' in navigator)) { toast('이 기기는 위치를 지원하지 않아요'); return; }
+  enableCompass(); // 사용자 제스처 시점에 나침반 권한도 함께
   watching = navigator.geolocation.watchPosition(
     (pos) => { locBtn.classList.add('on'); onFix(pos); },
     (err) => {
@@ -577,6 +766,149 @@ function exitDemo() {
   meG.setAttribute('visibility', 'hidden');
 }
 
+/* ─── 가족 함께 보기: 초대코드 실시간 위치 공유 (미아방지) ─── */
+const SB_URL = 'https://cnvezqmnxsmdrqhagmrq.supabase.co';
+const SB_KEY = 'PASTE_ANON_KEY';
+const famBtn = document.getElementById('famBtn');
+const famWrap = document.getElementById('famWrap');
+let sb = null, famCh = null, famCode = null, lastShare = 0;
+const myId = (localStorage.getItem('quest.myid') || (() => {
+  const v = Math.random().toString(36).slice(2, 10);
+  localStorage.setItem('quest.myid', v);
+  return v;
+})());
+let myEmoji = '🧒';
+const ROLE = { '👩': '엄마', '👨': '아빠', '🧒': '아이', '🧓': '조부모' };
+const members = new Map(); // id -> {emoji, g, label, x, y, warnedAt}
+
+const famReady = () => typeof window.supabase !== 'undefined' && !SB_KEY.includes('PASTE');
+
+function memberMarker(id, emoji) {
+  const g = el('g', { class: 'fam' }, world);
+  const hue = [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  el('circle', { cx: 0, cy: 0, r: 17, fill: '#fff', stroke: `hsl(${hue} 60% 55%)`, 'stroke-width': 4 }, g);
+  const t = el('text', { x: 0, y: 7, 'font-size': 19, 'text-anchor': 'middle' }, g);
+  t.textContent = emoji;
+  const label = el('text', {
+    x: 0, y: 34, 'font-size': 13, 'font-weight': 700, 'text-anchor': 'middle',
+    fill: '#2e5540', stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke',
+  }, g);
+  return { emoji, g, label, x: null, y: null, warnedAt: 0 };
+}
+
+function upsertMember(p) {
+  if (p.id === myId) return;
+  let m = members.get(p.id);
+  if (!m) { m = memberMarker(p.id, p.e); members.set(p.id, m); renderFamList(); }
+  m.x = p.x; m.y = p.y;
+  m.g.setAttribute('transform', `translate(${p.x} ${p.y})`);
+  updateFamDistances();
+}
+
+function myPos() {
+  if (meG.getAttribute('visibility') !== 'visible') return null;
+  const t = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(meG.getAttribute('transform'));
+  return t ? [+t[1], +t[2]] : null;
+}
+
+function updateFamDistances() {
+  const me = myPos();
+  for (const m of members.values()) {
+    if (m.x === null) continue;
+    if (me) {
+      const dm = Math.round(Math.hypot(m.x - me[0], m.y - me[1]) / M2U);
+      m.label.textContent = `${ROLE[m.emoji] || '가족'} ${dm}m`;
+      if (dm > 250 && Date.now() - m.warnedAt > 60000) {
+        m.warnedAt = Date.now();
+        toast(`⚠️ ${m.emoji} ${ROLE[m.emoji] || '가족'}와 ${dm}m 떨어졌어요!`);
+      }
+    } else {
+      m.label.textContent = ROLE[m.emoji] || '가족';
+    }
+  }
+  renderFamList();
+}
+
+function renderFamList() {
+  const li = document.getElementById('famList');
+  if (!members.size) { li.textContent = '아직 참여한 가족이 없어요. 코드를 알려주세요!'; return; }
+  const me = myPos();
+  li.innerHTML = '';
+  for (const m of members.values()) {
+    const row = document.createElement('div');
+    const dm = (me && m.x !== null) ? ` — ${Math.round(Math.hypot(m.x - me[0], m.y - me[1]) / M2U)}m` : '';
+    row.textContent = `${m.emoji} ${ROLE[m.emoji] || '가족'}${dm}`;
+    li.appendChild(row);
+  }
+}
+
+function shareMyPos(x, y) {
+  if (!famCh || Date.now() - lastShare < 2500) return;
+  lastShare = Date.now();
+  famCh.send({ type: 'broadcast', event: 'pos', payload: { id: myId, e: myEmoji, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 } });
+}
+
+function famJoin(code) {
+  if (!famReady()) { toast('가족 공유 기능을 준비하고 있어요'); return; }
+  code = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== 6) { toast('코드는 6자리예요'); return; }
+  if (!sb) sb = window.supabase.createClient(SB_URL, SB_KEY);
+  if (famCh) famLeave(false);
+  famCode = code;
+  famCh = sb.channel(`fam-${code}`, { config: { presence: { key: myId }, broadcast: { self: false } } });
+  famCh.on('broadcast', { event: 'pos' }, ({ payload }) => upsertMember(payload));
+  famCh.on('presence', { event: 'leave' }, ({ key }) => {
+    const m = members.get(key);
+    if (m) { m.g.remove(); members.delete(key); renderFamList(); }
+  });
+  famCh.subscribe((st) => {
+    if (st === 'SUBSCRIBED') {
+      famCh.track({ e: myEmoji });
+      famBtn.classList.add('on');
+      document.getElementById('famStart').style.display = 'none';
+      document.getElementById('famOn').style.display = 'block';
+      document.getElementById('famCodeShow').textContent = famCode;
+      renderFamList();
+      toast(`가족 코드 ${famCode} 연결됐어요`);
+      const me = myPos();
+      if (me) { lastShare = 0; shareMyPos(me[0], me[1]); }
+    } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
+      toast('연결에 실패했어요. 잠시 후 다시 시도해 주세요');
+      famLeave(false);
+    }
+  });
+}
+
+function famLeave(ui = true) {
+  if (famCh) { famCh.unsubscribe(); famCh = null; }
+  famCode = null;
+  for (const m of members.values()) m.g.remove();
+  members.clear();
+  famBtn.classList.remove('on');
+  document.getElementById('famStart').style.display = 'block';
+  document.getElementById('famOn').style.display = 'none';
+  if (ui) toast('가족 공유를 끝냈어요');
+}
+
+famBtn.addEventListener('click', () => famWrap.classList.add('open'));
+document.getElementById('famBack').addEventListener('click', () => famWrap.classList.remove('open'));
+document.querySelectorAll('#famModal .who button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#famModal .who button').forEach((x) => x.classList.remove('sel'));
+    b.classList.add('sel');
+    myEmoji = b.dataset.e;
+    if (famCh) famCh.track({ e: myEmoji });
+  });
+});
+document.getElementById('famMake').addEventListener('click', () => {
+  const abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 헷갈리는 I/L/O/0/1 제외
+  let code = '';
+  for (let i = 0; i < 6; i++) code += abc[Math.floor(Math.random() * abc.length)];
+  famJoin(code);
+});
+document.getElementById('famJoin').addEventListener('click', () => famJoin(document.getElementById('famCode').value));
+document.getElementById('famLeave').addEventListener('click', () => famLeave());
+
 /* ─── 산책 데모 (포켓몬GO식 자동 이동) ─── */
 const walkBtn = document.getElementById('walkBtn');
 const R = MAP.walkRoute;
@@ -594,7 +926,7 @@ function posAt(s) {
   const t = (s - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
   const x = R[i - 1][0] + (R[i][0] - R[i - 1][0]) * t;
   const y = R[i - 1][1] + (R[i][1] - R[i - 1][1]) * t;
-  return { x, y, dx: R[i][0] - R[i - 1][0] };
+  return { x, y, dx: R[i][0] - R[i - 1][0], dy: R[i][1] - R[i - 1][1] };
 }
 
 let walking = false, walkS = 0, walkRaf = null, lastTs = 0, recording = false;
@@ -610,9 +942,10 @@ function pinPop(p) {
 
 function renderWalk() {
   const p = posAt(walkS);
-  // 걸음 통통 효과
-  const bob = Math.sin(walkS * 0.9) * 2.5;
-  setMe(p.x, p.y + bob, 0, p.dx);
+  // 걸음 통통 효과 + 진행 방향 바라보기
+  const bob = Math.sin(walkS * 1.8) * 1.2;
+  setMe(p.x, p.y + bob, 0);
+  faceDirection(p.dx, p.dy, walkS * 0.9);
   tx = winW / 2 - p.x * k;
   ty = winH / 2 - p.y * k;
   applyTf();
