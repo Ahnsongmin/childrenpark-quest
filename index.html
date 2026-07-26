@@ -109,6 +109,9 @@
   #famModal .code b { font-size: 22px; letter-spacing: 4px; color: #2e6b34; margin-left: 6px; }
   #famList { font-size: 13px; color: #445; line-height: 1.9; margin-bottom: 8px; }
   #famModal .priv { font-size: 10px; color: #a9b3aa; margin-top: 12px; line-height: 1.5; }
+  #famModal .hint { font-size: 10px; color: #8a9a80; margin-top: 10px; line-height: 1.5; }
+  #famQR { display: flex; justify-content: center; margin: 10px 0; }
+  #famQR img, #famQR canvas { border: 6px solid #fff; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,.15); }
 
   /* 하단 진행 카드 */
   #hud {
@@ -218,8 +221,11 @@
       </div>
       <div id="famOn" style="display:none">
         <div class="code">코드 <b id="famCodeShow"></b></div>
+        <div id="famQR"></div>
+        <button class="big" id="famShare">📤 초대 링크 보내기</button>
         <div id="famList"></div>
         <button class="big off" id="famLeave">공유 끝내기</button>
+        <p class="hint">가족은 이 QR을 카메라로 찍거나 링크만 누르면 바로 연결돼요.<br>공원 밖에서 테스트할 땐 🚶 산책 데모를 켜면 내 위치가 가족 화면에 보여요.</p>
       </div>
       <p class="priv">위치는 같은 코드를 아는 가족끼리만 실시간으로 공유되고, 어디에도 저장되지 않아요.</p>
     </div>
@@ -262,6 +268,7 @@
 
 <script src="mapdata.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
 <script>
 'use strict';
 
@@ -772,9 +779,10 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const famBtn = document.getElementById('famBtn');
 const famWrap = document.getElementById('famWrap');
 let sb = null, famCh = null, famCode = null, lastShare = 0, famHb = null;
-const myId = (localStorage.getItem('quest.myid') || (() => {
+// 탭 단위 ID(sessionStorage) — 같은 기기에서 탭 2개 열어 혼자 테스트도 가능
+const myId = (sessionStorage.getItem('quest.myid') || (() => {
   const v = Math.random().toString(36).slice(2, 10);
-  localStorage.setItem('quest.myid', v);
+  sessionStorage.setItem('quest.myid', v);
   return v;
 })());
 let myEmoji = '🧒';
@@ -784,7 +792,7 @@ const members = new Map(); // id -> {emoji, g, label, x, y, warnedAt}
 const famReady = () => typeof window.supabase !== 'undefined' && !SB_KEY.includes('PASTE');
 
 function memberMarker(id, emoji) {
-  const g = el('g', { class: 'fam' }, world);
+  const g = el('g', { class: 'fam', visibility: 'hidden' }, world); // 위치 도착 전엔 숨김
   const hue = [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
   el('circle', { cx: 0, cy: 0, r: 17, fill: '#fff', stroke: `hsl(${hue} 60% 55%)`, 'stroke-width': 4 }, g);
   const t = el('text', { x: 0, y: 7, 'font-size': 19, 'text-anchor': 'middle' }, g);
@@ -802,6 +810,7 @@ function upsertMember(p) {
   if (!m) { m = memberMarker(p.id, p.e); members.set(p.id, m); renderFamList(); }
   m.x = p.x; m.y = p.y;
   m.g.setAttribute('transform', `translate(${p.x} ${p.y})`);
+  m.g.setAttribute('visibility', 'visible');
   updateFamDistances();
 }
 
@@ -836,7 +845,8 @@ function renderFamList() {
   li.innerHTML = '';
   for (const m of members.values()) {
     const row = document.createElement('div');
-    const dm = (me && m.x !== null) ? ` — ${Math.round(Math.hypot(m.x - me[0], m.y - me[1]) / M2U)}m` : '';
+    let dm = ' — 연결됨 (위치 기다리는 중)';
+    if (m.x !== null) dm = me ? ` — ${Math.round(Math.hypot(m.x - me[0], m.y - me[1]) / M2U)}m` : ' — 지도에 표시됨';
     row.textContent = `${m.emoji} ${ROLE[m.emoji] || '가족'}${dm}`;
     li.appendChild(row);
   }
@@ -857,9 +867,17 @@ function famJoin(code) {
   famCode = code;
   famCh = sb.channel(`fam-${code}`, { config: { presence: { key: myId }, broadcast: { self: false } } });
   famCh.on('broadcast', { event: 'pos' }, ({ payload }) => upsertMember(payload));
-  famCh.on('presence', { event: 'leave' }, ({ key }) => {
-    const m = members.get(key);
-    if (m) { m.g.remove(); members.delete(key); renderFamList(); }
+  // presence sync: 위치가 아직 없어도 연결된 가족은 즉시 목록에 표시, 나간 가족은 제거
+  famCh.on('presence', { event: 'sync' }, () => {
+    const st = famCh.presenceState();
+    for (const [key, metas] of Object.entries(st)) {
+      if (key === myId || members.has(key)) continue;
+      members.set(key, memberMarker(key, (metas[0] && metas[0].e) || '👤'));
+    }
+    for (const key of [...members.keys()]) {
+      if (!st[key]) { members.get(key).g.remove(); members.delete(key); }
+    }
+    renderFamList();
   });
   famCh.subscribe((st) => {
     if (st === 'SUBSCRIBED') {
@@ -868,6 +886,12 @@ function famJoin(code) {
       document.getElementById('famStart').style.display = 'none';
       document.getElementById('famOn').style.display = 'block';
       document.getElementById('famCodeShow').textContent = famCode;
+      // 초대 링크 QR (카메라로 찍으면 자동 참여)
+      const qr = document.getElementById('famQR');
+      qr.innerHTML = '';
+      if (typeof QRCode !== 'undefined') {
+        new QRCode(qr, { text: famLink(), width: 120, height: 120, correctLevel: QRCode.CorrectLevel.M });
+      }
       renderFamList();
       toast(`가족 코드 ${famCode} 연결됐어요`);
       // 4초마다 내 위치 재전송 — 늦게 들어온 가족도 곧바로 나를 봄
@@ -914,6 +938,26 @@ document.getElementById('famMake').addEventListener('click', () => {
 });
 document.getElementById('famJoin').addEventListener('click', () => famJoin(document.getElementById('famCode').value));
 document.getElementById('famLeave').addEventListener('click', () => famLeave());
+
+const famLink = () => `${location.origin}${location.pathname}?fam=${famCode}`;
+document.getElementById('famShare').addEventListener('click', async () => {
+  const url = famLink();
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: '공원 원정대 — 가족 함께 보기', text: `초대코드 ${famCode} — 누르면 바로 연결돼요`, url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast('초대 링크를 복사했어요. 가족에게 붙여넣어 보내세요!');
+    }
+  } catch (_) { /* 공유 취소 */ }
+});
+
+// 초대 링크(?fam=코드)로 들어오면 자동 참여
+const famParam = new URLSearchParams(location.search).get('fam');
+if (famParam) {
+  famWrap.classList.add('open');
+  famJoin(famParam);
+}
 
 /* ─── 산책 데모 (포켓몬GO식 자동 이동) ─── */
 const walkBtn = document.getElementById('walkBtn');
