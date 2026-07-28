@@ -6,6 +6,13 @@
 <title>공원 원정대 — 서울어린이대공원 탐험 지도</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
 <meta name="description" content="서울어린이대공원을 탐험하는 참여형 3D 지도. 나만의 캐릭터로 모험을 떠나요!">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2e6b34">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="공원 원정대">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; overflow: hidden; }
@@ -296,5 +303,10 @@
 }}
 </script>
 <script type="module" src="js/main.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+}
+</script>
 </body>
 </html>
