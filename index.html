@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>공원 원정대 — 서울어린이대공원 탐험 지도</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
-<meta name="description" content="서울어린이대공원을 탐험하는 참여형 지도. 랜드마크를 찾아 모험을 떠나요!">
+<meta name="description" content="서울어린이대공원을 탐험하는 참여형 3D 지도. 나만의 캐릭터로 모험을 떠나요!">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; overflow: hidden; }
@@ -15,11 +15,11 @@
   }
   #frame {
     position: relative; width: 100%; max-width: 480px; height: 100dvh;
-    background: #c3cfc4; overflow: hidden; touch-action: none;
+    background: #cfe8f5; overflow: hidden; touch-action: none;
     box-shadow: 0 0 24px rgba(0,0,0,.12);
   }
-  svg#map { width: 100%; height: 100%; display: block; cursor: grab; }
-  svg#map:active { cursor: grabbing; }
+  canvas#gl { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+  canvas#gl:active { cursor: grabbing; }
 
   /* 상단 타이틀 */
   #title {
@@ -29,6 +29,12 @@
     box-shadow: 0 2px 8px rgba(0,0,0,.15); pointer-events: none;
   }
   #title small { display: block; font-size: 10px; font-weight: 600; color: #7ba381; }
+  #helpBtn {
+    position: absolute; top: 66px; left: 12px; z-index: 5;
+    width: 34px; height: 34px; border-radius: 50%; border: 0;
+    background: #ffffffee; font-size: 16px; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  }
 
   /* 공원 밖 배너 */
   #banner {
@@ -50,27 +56,19 @@
   }
   #demoTag.show { display: block; }
 
-  /* 위치 버튼 */
-  #locBtn {
-    position: absolute; right: 14px; bottom: 96px; z-index: 5;
+  /* 우측 버튼 스택 */
+  #locBtn, #walkBtn, #famBtn, #dressBtn {
+    position: absolute; right: 14px; z-index: 5;
     width: 48px; height: 48px; border-radius: 50%; border: 0;
     background: #fff; font-size: 22px; cursor: pointer;
     box-shadow: 0 3px 10px rgba(0,0,0,.2);
   }
+  #locBtn { bottom: 96px; }
+  #walkBtn { bottom: 152px; }
+  #famBtn { bottom: 208px; }
+  #dressBtn { bottom: 264px; }
   #locBtn.on { background: #3b82f6; }
-  #walkBtn {
-    position: absolute; right: 14px; bottom: 152px; z-index: 5;
-    width: 48px; height: 48px; border-radius: 50%; border: 0;
-    background: #fff; font-size: 22px; cursor: pointer;
-    box-shadow: 0 3px 10px rgba(0,0,0,.2);
-  }
   #walkBtn.on { background: #f5b83d; }
-  #famBtn {
-    position: absolute; right: 14px; bottom: 208px; z-index: 5;
-    width: 48px; height: 48px; border-radius: 50%; border: 0;
-    background: #fff; font-size: 22px; cursor: pointer;
-    box-shadow: 0 3px 10px rgba(0,0,0,.2);
-  }
   #famBtn.on { background: #7ed695; }
 
   /* 가족 공유 모달 */
@@ -85,11 +83,10 @@
   #famModal h3 { font-size: 17px; color: #2e6b34; }
   #famModal .sub { font-size: 12px; color: #667; line-height: 1.5; margin-top: 6px; }
   #famModal .who { display: flex; align-items: center; gap: 8px; margin: 14px 0 10px; font-size: 13px; color: #556; }
-  #famModal .who button {
-    width: 42px; height: 42px; border-radius: 12px; border: 2px solid #e2e8e2;
-    background: #fff; font-size: 22px; cursor: pointer;
+  #famModal .who input {
+    flex: 1; border: 2px solid #e2e8e2; border-radius: 12px; padding: 10px 12px;
+    font-size: 15px; min-width: 0;
   }
-  #famModal .who button.sel { border-color: #2e6b34; background: #eef7e8; }
   #famModal .big {
     width: 100%; border: 0; border-radius: 12px; background: #2e6b34; color: #fff;
     font-size: 14px; font-weight: 700; padding: 12px; cursor: pointer; margin-top: 4px;
@@ -134,8 +131,6 @@
   }
   @keyframes up { from { transform: translateY(40%); opacity: .4; } to { transform: none; opacity: 1; } }
   #sheet .grip { width: 40px; height: 4px; border-radius: 2px; background: #ddd; margin: 0 auto 12px; }
-  #sheet img { width: 100%; height: 150px; object-fit: cover; border-radius: 14px; margin-bottom: 12px; }
-  #shCredit { margin-top: 8px; font-size: 9px; color: #b3bdb5; }
   #sheet .row { display: flex; align-items: center; gap: 12px; }
   #sheet .emo {
     width: 52px; height: 52px; border-radius: 16px; background: #eef7e8;
@@ -152,23 +147,43 @@
     font-size: 12px; color: #8a9a80;
   }
 
-  /* 코치마크 */
-  #coach {
-    position: absolute; inset: 0; z-index: 20; background: rgba(20,40,25,.55);
-    display: none; align-items: center; justify-content: center; text-align: center;
+  /* 리니워니 튜토리얼 */
+  #tuto {
+    position: absolute; inset: 0; z-index: 20; background: rgba(15,35,20,.58);
+    display: none; flex-direction: column; justify-content: flex-end;
   }
-  #coach.show { display: flex; }
-  #coach .card {
-    background: #fff; border-radius: 20px; padding: 24px 22px; width: 78%; max-width: 320px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.3);
+  #tuto.show { display: flex; }
+  #tuto .bubble {
+    position: relative; margin: 0 18px 14px; background: #fff; border-radius: 18px;
+    padding: 18px 18px 16px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
   }
-  #coach .card .big { font-size: 34px; }
-  #coach .card h3 { font-size: 17px; color: #2e6b34; margin: 8px 0 6px; }
-  #coach .card p { font-size: 13px; color: #556; line-height: 1.6; }
-  #coach .card .priv { font-size: 11px; color: #98a; margin-top: 8px; }
-  #coach .card button {
-    margin-top: 14px; border: 0; border-radius: 12px; background: #2e6b34; color: #fff;
-    font-size: 14px; font-weight: 700; padding: 10px 26px; cursor: pointer;
+  #tuto .bubble::after {
+    content: ''; position: absolute; left: 52px; bottom: -12px;
+    border: 12px solid transparent; border-top-color: #fff; border-bottom: 0;
+  }
+  #tutoText { font-size: 14.5px; line-height: 1.65; color: #334; }
+  #tutoText b { color: #2e6b34; }
+  #tutoText small { color: #98a; font-size: 11.5px; }
+  #tutoAction {
+    display: none; margin-top: 12px; width: 100%; border: 0; border-radius: 12px;
+    background: #f5b83d; color: #4a3800; font-size: 14px; font-weight: 800;
+    padding: 11px; cursor: pointer;
+  }
+  #tuto .mascotRow { display: flex; align-items: flex-end; padding: 0 18px; }
+  #tutoImg { height: 132px; border-radius: 18px; box-shadow: 0 6px 14px rgba(0,0,0,.3); }
+  #tuto .tutoBar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px calc(16px + env(safe-area-inset-bottom));
+  }
+  #tutoSkip {
+    border: 0; background: none; color: #cfe0d2; font-size: 13px; cursor: pointer; padding: 8px;
+  }
+  #tutoDots { display: flex; gap: 6px; }
+  #tutoDots i { width: 7px; height: 7px; border-radius: 50%; background: #ffffff55; }
+  #tutoDots i.on { background: #fff; }
+  #tutoNext {
+    border: 0; border-radius: 14px; background: #2e6b34; color: #fff;
+    font-size: 14px; font-weight: 800; padding: 10px 22px; cursor: pointer;
   }
 
   #toast {
@@ -187,9 +202,10 @@
 </head>
 <body>
 <div id="frame">
-  <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
+  <canvas id="gl"></canvas>
 
   <div id="title">🌳 공원 원정대<small>서울어린이대공원 탐험 지도</small></div>
+  <button id="helpBtn" aria-label="사용 방법 다시 보기">❓</button>
 
   <div id="banner">
     📍 지금은 공원 밖이에요.<br>공원에서 열면 내 위치가 표시돼요.
@@ -200,6 +216,7 @@
   <button id="locBtn" aria-label="내 위치">📍</button>
   <button id="walkBtn" aria-label="산책 데모">🚶</button>
   <button id="famBtn" aria-label="가족 함께 보기">👪</button>
+  <button id="dressBtn" aria-label="내 캐릭터 꾸미기">👕</button>
 
   <div id="famWrap">
     <div id="famBack"></div>
@@ -207,9 +224,8 @@
       <h3>👪 가족 함께 보기</h3>
       <p class="sub">초대코드로 연결하면 가족의 위치가 지도에 함께 표시돼요.<br>아이를 잃어버릴 걱정 없이 탐험하세요!</p>
       <div class="who">
-        <span>나는</span>
-        <button data-e="👩">👩</button><button data-e="👨">👨</button>
-        <button data-e="🧒" class="sel">🧒</button><button data-e="🧓">🧓</button>
+        <span>내 이름</span>
+        <input id="famName" maxlength="8" placeholder="예: 민준" autocomplete="off">
       </div>
       <div id="famStart">
         <button class="big" id="famMake">새 초대코드 만들기</button>
@@ -233,7 +249,7 @@
 
   <div id="hud">
     <span style="font-size:22px">🗺️</span>
-    <div><span class="n" id="hudCount">0</span> / 16 랜드마크 발견<br>핀을 눌러 어떤 곳인지 알아보세요</div>
+    <div><span class="n" id="hudCount">0</span> / 16 랜드마크 발견<br>이모지 핀을 눌러 어떤 곳인지 알아보세요</div>
   </div>
 
   <div id="credit">지도 데이터 © OpenStreetMap contributors</div>
@@ -242,24 +258,27 @@
     <div id="sheetBack"></div>
     <div id="sheet">
       <div class="grip"></div>
-      <img id="shPhoto" alt="" style="display:none">
       <div class="row">
         <div class="emo" id="shEmo"></div>
         <div><h2 id="shName"></h2><span class="zone" id="shZone"></span></div>
       </div>
       <p id="shDesc"></p>
       <div class="soon">🎯 곧 이곳에서 미션이 열려요! (준비 중)</div>
-      <div id="shCredit"></div>
     </div>
   </div>
 
-  <div id="coach">
-    <div class="card">
-      <div class="big">🧭</div>
-      <h3>공원 원정대에 온 걸 환영해요!</h3>
-      <p>지도 위 <b>동그란 핀</b>을 눌러 랜드마크를 알아보고,<br>📍 버튼으로 <b>내 위치</b>를 켜서 탐험을 떠나요.</p>
-      <p class="priv">위치 정보는 휴대폰 안에서만 사용되고 어디에도 저장·전송되지 않아요.</p>
-      <button id="coachBtn">탐험 시작!</button>
+  <div id="tuto">
+    <div class="bubble">
+      <p id="tutoText"></p>
+      <button id="tutoAction"></button>
+    </div>
+    <div class="mascotRow">
+      <img id="tutoImg" src="img/liniwani.avif" alt="리니워니" onerror="this.style.display='none'">
+    </div>
+    <div class="tutoBar">
+      <button id="tutoSkip">건너뛰기</button>
+      <div id="tutoDots"></div>
+      <button id="tutoNext">다음</button>
     </div>
   </div>
 
@@ -269,812 +288,13 @@
 <script src="mapdata.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
-<script>
-'use strict';
-
-/* ─── 랜드마크 16곳 (좌표: OSM 실측, 15·16번은 근사) ─── */
-const ZONES = {
-  gate:   { label: '출입구',   color: '#8b7355' },
-  fun:    { label: '재미나라', color: '#e8709a' },
-  animal: { label: '동물나라', color: '#e8963c' },
-  nature: { label: '자연나라', color: '#4caf6e' },
-  conv:   { label: '쉼터',     color: '#7d8fc9' },
-};
-const LANDMARKS = [
-  { id:'main-gate', name:'정문·고객안내센터', zone:'gate', lat:37.54939, lon:127.07632, emoji:'🚩',
-    desc:'공원의 시작점! 고객안내소·미아보호소·의무실이 모여 있어요. 유아차와 휠체어도 여기서 빌릴 수 있어요.' },
-  { id:'sangsang', name:'서울상상나라', zone:'fun', lat:37.55066, lon:127.07752, emoji:'🎨',
-    desc:'아이들이 몸으로 놀며 배우는 체험형 어린이 박물관이에요.' },
-  { id:'fountain', name:'음악분수', zone:'fun', lat:37.54952, lon:127.07821, emoji:'⛲',
-    desc:'음악에 맞춰 물줄기가 춤추는 공원의 명물 분수예요.' },
-  { id:'openstage', name:'열린무대', zone:'fun', lat:37.54894, lon:127.07776, emoji:'🎤',
-    desc:'야외 공연과 행사가 열리는 큰 무대예요.' },
-  { id:'kkummaru', name:'꿈마루', zone:'conv', lat:37.54923, lon:127.07936, emoji:'☕',
-    desc:'공원 한가운데 있는 건축 명소. 카페와 전망 쉼터가 있어요.' },
-  { id:'kkumtle', name:'꿈틀꿈틀놀이터', zone:'fun', lat:37.54810, lon:127.08020, emoji:'🛝',
-    desc:'국내 최초 무장애 통합놀이터! 모든 아이가 함께 놀 수 있게 만들어졌어요.' },
-  { id:'foreststage', name:'숲속의무대', zone:'fun', lat:37.54905, lon:127.08030, emoji:'🎭',
-    desc:'나무로 둘러싸인 야외 공연장이에요.' },
-  { id:'tropical', name:'열대동물관', zone:'animal', lat:37.54932, lon:127.08176, emoji:'🦎', labelTop:true,
-    desc:'더운 나라에서 온 동물 친구들을 만나고, 동물학교 프로그램도 열려요.' },
-  { id:'minivillage', name:'꼬마동물마을', zone:'animal', lat:37.54897, lon:127.08162, emoji:'🐰',
-    desc:'작고 귀여운 동물 친구들이 사는 마을이에요.' },
-  { id:'predator', name:'맹수마을', zone:'animal', lat:37.54880, lon:127.08310, emoji:'🦁',
-    desc:'사자와 호랑이 같은 용맹한 동물들이 사는 곳이에요.' },
-  { id:'herbivore', name:'초식동물마을', zone:'animal', lat:37.54827, lon:127.08209, emoji:'🦌',
-    desc:'풀을 먹고 사는 순한 동물 친구들의 마을이에요.' },
-  { id:'sea', name:'바다동물원', zone:'animal', lat:37.54723, lon:127.08292, emoji:'🦭',
-    desc:'바다에서 온 동물 친구들을 만나는 곳이에요.' },
-  { id:'palgak', name:'팔각당', zone:'conv', lat:37.54984, lon:127.08245, emoji:'🏯',
-    desc:'공원 한가운데 8각 건물. 실내놀이터와 카페가 있어 쉬어가기 좋아요.' },
-  { id:'rides', name:'놀이동산', zone:'fun', lat:37.55148, lon:127.08379, emoji:'🎡',
-    desc:'신나는 놀이기구가 가득한 곳! 공원 북쪽에 있어요.' },
-  { id:'botanic', name:'식물원', zone:'nature', lat:37.54920, lon:127.08430, emoji:'🌷',
-    desc:'신기한 식물이 가득한 온실이에요. 생태연못과 정원도 근처에 있어요.' },
-  { id:'back-gate', name:'후문', zone:'gate', lat:37.55160, lon:127.08905, emoji:'🚪',
-    desc:'아차산역 쪽 출입구예요. 놀이동산과 식물원이 가까워요.' },
-];
-
-/* ─── 좌표 변환 ─── */
-const prj = (lat, lon) => [
-  (lon - MAP.LON_MIN) / (MAP.LON_MAX - MAP.LON_MIN) * MAP.VIEW_W,
-  (MAP.LAT_MAX - lat) / (MAP.LAT_MAX - MAP.LAT_MIN) * MAP.VIEW_H,
-];
-// 1 viewBox 단위 ≈ 0.83m (동서 1300m / 1580)
-const M2U = MAP.VIEW_W / 1300;
-
-function inPark(x, y, bufferM = 80) {
-  const b = bufferM * M2U;
-  if (x < -b || y < -b || x > MAP.VIEW_W + b || y > MAP.VIEW_H + b) return false;
-  // point-in-polygon (ray casting)
-  const pts = MAP.boundaryPts;
-  let inside = false;
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const [xi, yi] = pts[i], [xj, yj] = pts[j];
-    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
-  }
-  if (inside) return true;
-  // 버퍼: 경계까지 최단거리
-  let min = Infinity;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
-    const dx = x2 - x1, dy = y2 - y1;
-    const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy || 1)));
-    const px = x1 + t * dx - x, py = y1 + t * dy - y;
-    min = Math.min(min, px * px + py * py);
-  }
-  return Math.sqrt(min) <= b;
-}
-
-/* ─── SVG 지도 구성 ─── */
-const SVG_NS = 'http://www.w3.org/2000/svg';
-const svg = document.getElementById('map');
-// 화면 비율에 맞는 창(window)을 viewBox로 사용 — 세로 폰에서 공원이 화면 높이에 꽉 차게
-let winW = MAP.VIEW_W, winH = MAP.VIEW_H;
-function fitViewBox() {
-  const r = svg.getBoundingClientRect();
-  winH = MAP.VIEW_H;
-  winW = Math.round(winH * r.width / r.height);
-  if (winW > MAP.VIEW_W) {
-    winW = MAP.VIEW_W;
-    winH = Math.round(winW * r.height / r.width);
-  }
-  svg.setAttribute('viewBox', `0 0 ${winW} ${winH}`);
-}
-
-const el = (tag, attrs, parent) => {
-  const n = document.createElementNS(SVG_NS, tag);
-  for (const k in attrs) n.setAttribute(k, attrs[k]);
-  (parent || svg).appendChild(n);
-  return n;
-};
-
-const world = el('g', { id: 'world' });
-
-// 바깥 배경(도시) + 주변 도로 + 공원 잔디
-el('rect', { x: -2000, y: -2000, width: MAP.VIEW_W + 4000, height: MAP.VIEW_H + 4000, fill: '#e3e0d8' }, world);
-for (const d of MAP.roadsMinor) el('path', { d, fill: 'none', stroke: '#d3cfc5', 'stroke-width': 9, 'stroke-linecap': 'round' }, world);
-for (const d of MAP.roadsMinor) el('path', { d, fill: 'none', stroke: '#f7f5f0', 'stroke-width': 6, 'stroke-linecap': 'round' }, world);
-for (const d of MAP.roadsMajor) el('path', { d, fill: 'none', stroke: '#e8c98a', 'stroke-width': 16, 'stroke-linecap': 'round' }, world);
-for (const d of MAP.roadsMajor) el('path', { d, fill: 'none', stroke: '#fbe7b8', 'stroke-width': 11, 'stroke-linecap': 'round' }, world);
-el('path', { d: MAP.boundary, fill: '#d9ecbc', stroke: '#8fbc74', 'stroke-width': 8 }, world);
-
-// 면 레이어: 잔디 → 숲 → 경기장·주차장 → 놀이동산·동물사·놀이터
-for (const d of MAP.lawns) el('path', { d, fill: '#c8e6a6', opacity: 0.9 }, world);
-for (const d of MAP.woods) el('path', { d, fill: '#a9d68b', opacity: 0.95 }, world);
-for (const d of MAP.pitches) el('path', { d, fill: '#9fd6b4', stroke: '#7fbf9a', 'stroke-width': 2 }, world);
-for (const d of MAP.parkings) el('path', { d, fill: '#e3e0d5', stroke: '#cfcabb', 'stroke-width': 1.5 }, world);
-for (const d of MAP.themepark) el('path', { d, fill: '#ffd9e8', opacity: 0.75, stroke: '#f2a9c8', 'stroke-width': 3 }, world);
-for (const d of MAP.zooAreas) el('path', { d, fill: '#f5deb8', opacity: 0.85, stroke: '#dcbe8a', 'stroke-width': 2 }, world);
-for (const d of MAP.playgrounds) el('path', { d, fill: '#ffe9b8', stroke: '#eccf8e', 'stroke-width': 2 }, world);
-
-// 보행로 (케이싱 + 본선)
-for (const d of MAP.paths) el('path', { d, fill: 'none', stroke: '#c9bfa0', 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, world);
-for (const d of MAP.paths) el('path', { d, fill: 'none', stroke: '#fdf6e3', 'stroke-width': 4.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, world);
-
-// 건물 (그림자 + 본체)
-for (const d of MAP.buildings) el('path', { d, fill: '#00000014', transform: 'translate(3 4)' }, world);
-for (const d of MAP.buildings) el('path', { d, fill: '#f0e2c8', stroke: '#d8c5a0', 'stroke-width': 1.5 }, world);
-
-// 물 (연못·물놀이장)
-for (const d of MAP.water) el('path', { d, fill: '#a5d8ef', stroke: '#79c2e4', 'stroke-width': 2.5 }, world);
-
-// 나무 (숲 폴리곤 내부 자동 배치)
-for (const [x, y, s] of MAP.trees) {
-  const t = el('text', { x, y, 'font-size': s, 'text-anchor': 'middle' }, world);
-  t.textContent = '🌳';
-}
-
-// 산책 데모 경로 (은은한 점선 — 산책 모드에서만 표시)
-const routeEl = el('path', {
-  d: 'M' + MAP.walkRoute.map(p => p.join(' ')).join('L'),
-  fill: 'none', stroke: '#f5b83d', 'stroke-width': 6, 'stroke-dasharray': '2 14',
-  'stroke-linecap': 'round', opacity: 0, id: 'routeLine',
-}, world);
-
-// 내 위치 아바타 — 방향별(앞·뒤·옆) 커스텀 캐릭터
-const meG = el('g', { id: 'me', visibility: 'hidden' }, world);
-const meAcc = el('circle', { cx: 0, cy: 0, r: 0, fill: '#3b82f640' }, meG);
-const pulse = el('circle', { cx: 0, cy: 0, r: 14, fill: 'none', stroke: '#3b82f6', 'stroke-width': 3 }, meG);
-el('animate', { attributeName: 'r', values: '14;34', dur: '1.6s', repeatCount: 'indefinite' }, pulse);
-el('animate', { attributeName: 'opacity', values: '0.7;0', dur: '1.6s', repeatCount: 'indefinite' }, pulse);
-// 바라보는 방향 콘 (포켓몬GO식) — 북쪽 기준 시계방향 회전
-const headingCone = el('path', {
-  d: 'M0 0 L-17 -36 A 40 40 0 0 1 17 -36 Z',
-  fill: '#3b82f6', opacity: 0, 'pointer-events': 'none',
-}, meG);
-el('ellipse', { cx: 0, cy: 14, rx: 12, ry: 4.5, fill: '#00000022' }, meG);
-const meBody = el('g', {}, meG);
-
-const C = { skin: '#f8c89c', hair: '#5b3d26', shirt: '#f97316', pants: '#3b5bd1', shoe: '#333a44' };
-
-function buildAvatar(view) { // view: 'front' | 'back' | 'side' (side는 오른쪽 보기)
-  const g = el('g', { visibility: 'hidden' }, meBody);
-  const limbs = {};
-  if (view === 'side') {
-    limbs.armB = el('rect', { x: -2, y: -7, width: 4, height: 11, rx: 2, fill: '#d95f0e' }, g);
-    limbs.legB = el('rect', { x: -2, y: 2, width: 4.6, height: 12, rx: 2.2, fill: '#2c46a8' }, g);
-    el('ellipse', { cx: 0, cy: -3, rx: 5.5, ry: 7.5, fill: C.shirt }, g);   // 몸통
-    limbs.legF = el('rect', { x: -2.3, y: 2, width: 4.6, height: 12, rx: 2.2, fill: C.pants }, g);
-    el('circle', { cx: 1, cy: -14, r: 7, fill: C.skin }, g);                 // 머리(진행방향 앞쪽)
-    el('path', { d: 'M-6 -15 A7 7 0 0 1 6 -19 L 5 -13 A 5.5 5.5 0 0 0 -5.5 -12 Z', fill: C.hair }, g); // 뒷머리
-    limbs.armF = el('rect', { x: -1.6, y: -7, width: 4, height: 11, rx: 2, fill: C.shirt }, g);
-  } else {
-    const face = view === 'front';
-    limbs.legL = el('rect', { x: -5, y: 2, width: 4.4, height: 12, rx: 2.2, fill: C.pants }, g);
-    limbs.legR = el('rect', { x: 0.6, y: 2, width: 4.4, height: 12, rx: 2.2, fill: C.pants }, g);
-    el('ellipse', { cx: 0, cy: -3, rx: 6.5, ry: 7.5, fill: C.shirt }, g);
-    limbs.armL = el('rect', { x: -9, y: -7, width: 3.6, height: 11, rx: 1.8, fill: face ? C.shirt : '#d95f0e' }, g);
-    limbs.armR = el('rect', { x: 5.4, y: -7, width: 3.6, height: 11, rx: 1.8, fill: face ? C.shirt : '#d95f0e' }, g);
-    el('circle', { cx: 0, cy: -14, r: 7, fill: face ? C.skin : C.hair }, g); // 뒷모습은 머리카락만
-    if (face) {
-      el('path', { d: 'M-7 -16 A7 7 0 0 1 7 -16 L 7 -18 A 7 7 0 0 0 -7 -18 Z', fill: C.hair }, g);
-      el('circle', { cx: -2.5, cy: -14, r: 1.1, fill: '#333' }, g);          // 눈
-      el('circle', { cx: 2.5, cy: -14, r: 1.1, fill: '#333' }, g);
-      el('path', { d: 'M-1.6 -10.5 Q0 -9.2 1.6 -10.5', stroke: '#333', 'stroke-width': 0.9, fill: 'none', 'stroke-linecap': 'round' }, g); // 입
-    }
-  }
-  return { g, limbs };
-}
-
-const AV = { front: buildAvatar('front'), back: buildAvatar('back'), side: buildAvatar('side') };
-let avView = 'front';
-
-function setAvatar(view, flip, phase) {
-  if (view !== avView) {
-    AV[avView].g.setAttribute('visibility', 'hidden');
-    AV[view].g.setAttribute('visibility', 'visible');
-    avView = view;
-  }
-  meBody.setAttribute('transform', `scale(${flip ? -1 : 1} 1)`);
-  const L = AV[view].limbs;
-  const sw = Math.sin(phase) * 24; // 팔다리 스윙 각도
-  if (view === 'side') {
-    L.legF.setAttribute('transform', `rotate(${sw} 0 2)`);
-    L.legB.setAttribute('transform', `rotate(${-sw} 0 2)`);
-    L.armF.setAttribute('transform', `rotate(${-sw * 0.8} 0 -6)`);
-    L.armB.setAttribute('transform', `rotate(${sw * 0.8} 0 -6)`);
-  } else {
-    const st = Math.sin(phase) * 3; // 앞/뒷모습은 다리 위아래 스텝
-    L.legL.setAttribute('transform', `translate(0 ${-Math.max(0, st)})`);
-    L.legR.setAttribute('transform', `translate(0 ${-Math.max(0, -st)})`);
-    L.armL.setAttribute('transform', `rotate(${st * 4} -7 -6)`);
-    L.armR.setAttribute('transform', `rotate(${-st * 4} 7 -6)`);
-  }
-}
-AV.front.g.setAttribute('visibility', 'visible'); // 기본: 앞모습
-setAvatar('front', false, 0);
-
-// 랜드마크 핀 (실사진 있으면 원형 사진, 없으면 이모지)
-const PHOTOS = new Set(['main-gate', 'sangsang', 'fountain', 'rides', 'botanic', 'herbivore', 'sea', 'tropical', 'kkummaru']);
-const CREDITS = {
-  'main-gate': 'Peachy1234', sangsang: 'Peachy1234', fountain: 'Peachy1234', rides: 'Peachy1234',
-  botanic: 'Peachy1234', sea: 'Peachy1234', tropical: 'Peachy1234', herbivore: 'Handan99',
-  kkummaru: '최호진(Choi,Hojin), Flickr',
-};
-const defs = el('defs', {});
-const pinsG = el('g', { id: 'pins' }, world);
-const pinEls = [];
-for (const lm of LANDMARKS) {
-  const [x, y] = prj(lm.lat, lm.lon);
-  const g = el('g', { class: 'pin', transform: `translate(${x} ${y})`, cursor: 'pointer' }, pinsG);
-  const inner = el('g', {}, g);
-  el('circle', { cx: 0, cy: 0, r: 27, fill: '#ffffff', stroke: ZONES[lm.zone].color, 'stroke-width': 5 }, inner);
-  if (PHOTOS.has(lm.id)) {
-    const clip = el('clipPath', { id: `clip-${lm.id}` }, defs);
-    el('circle', { cx: 0, cy: 0, r: 24, fill: '#000' }, clip);
-    el('image', {
-      href: `img/${lm.id}.jpg`, x: -24, y: -24, width: 48, height: 48,
-      'clip-path': `url(#clip-${lm.id})`, preserveAspectRatio: 'xMidYMid slice',
-    }, inner);
-  } else {
-    const t = el('text', { x: 0, y: 9, 'font-size': 26, 'text-anchor': 'middle' }, inner);
-    t.textContent = lm.emoji;
-  }
-  const label = el('text', {
-    x: 0, y: lm.labelTop ? -38 : 48, 'font-size': 17, 'font-weight': 700, 'text-anchor': 'middle',
-    fill: '#3a5540', stroke: '#ffffff', 'stroke-width': 4, 'paint-order': 'stroke',
-  }, inner);
-  label.textContent = lm.name;
-  g.addEventListener('click', (e) => { e.stopPropagation(); openSheet(lm); });
-  pinEls.push({ lm, g, inner, x, y });
-}
-world.appendChild(meG); // 아바타는 핀보다 위 레이어
-
-/* ─── 팬/줌 ─── */
-let tx = 0, ty = 0, k = 1;
-const KMIN = 1, KMAX = 6;
-
-function clampPan() {
-  // 보이는 창(winW×winH)이 공원 컨텐츠(k배) 밖으로 나가지 않게
-  tx = Math.min(0, Math.max(winW - MAP.VIEW_W * k, tx));
-  ty = Math.min(0, Math.max(winH - MAP.VIEW_H * k, ty));
-}
-function applyTf() {
-  clampPan();
-  world.setAttribute('transform', `translate(${tx} ${ty}) scale(${k})`);
-  const ps = Math.max(0.4, Math.min(1, 1 / Math.sqrt(k)));
-  for (const p of pinEls) p.inner.setAttribute('transform', `scale(${ps})`);
-}
-const toView = (cx, cy) => {
-  const pt = new DOMPoint(cx, cy).matrixTransform(svg.getScreenCTM().inverse());
-  return [pt.x, pt.y];
-};
-function zoomAt(cx, cy, factor) {
-  const [vx, vy] = toView(cx, cy);
-  const nk = Math.max(KMIN, Math.min(KMAX, k * factor));
-  const f = nk / k;
-  tx = vx - (vx - tx) * f;
-  ty = vy - (vy - ty) * f;
-  k = nk;
-  applyTf();
-}
-
-const pointers = new Map();
-let lastDist = 0, moved = 0;
-svg.addEventListener('pointerdown', (e) => {
-  try { svg.setPointerCapture(e.pointerId); } catch (_) { /* 합성 이벤트 등 캡처 불가 시 무시 */ }
-  pointers.set(e.pointerId, [e.clientX, e.clientY]);
-  moved = 0;
-});
-svg.addEventListener('pointermove', (e) => {
-  if (!pointers.has(e.pointerId)) return;
-  const prev = pointers.get(e.pointerId);
-  pointers.set(e.pointerId, [e.clientX, e.clientY]);
-  if (walking) { moved += 10; return; } // 산책 중엔 카메라 고정
-  if (pointers.size === 1) {
-    const [vx1, vy1] = toView(prev[0], prev[1]);
-    const [vx2, vy2] = toView(e.clientX, e.clientY);
-    tx += vx2 - vx1; ty += vy2 - vy1;
-    moved += Math.abs(e.clientX - prev[0]) + Math.abs(e.clientY - prev[1]);
-    applyTf();
-  } else if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    const dist = Math.hypot(a[0] - b[0], a[1] - b[1]);
-    if (lastDist > 0) zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, dist / lastDist);
-    lastDist = dist;
-    moved += 10;
-  }
-});
-const endPointer = (e) => {
-  pointers.delete(e.pointerId);
-  if (pointers.size < 2) lastDist = 0;
-  // 데모 모드: 이동 없이 톡 누르면 가상 위치 이동
-  if (demo && moved < 8 && e.target.closest && !e.target.closest('.pin')) {
-    const [vx, vy] = toView(e.clientX, e.clientY);
-    const wx = (vx - tx) / k, wy = (vy - ty) / k;
-    if (inPark(wx, wy, 20)) setMe(wx, wy, 0);
-  }
-};
-svg.addEventListener('pointerup', endPointer);
-svg.addEventListener('pointercancel', endPointer);
-svg.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 0.87);
-}, { passive: false });
-
-fitViewBox();
-// 초기 뷰: 정문(공원 시작점) 부근이 보이게
-tx = winW / 2 - prj(37.54939, 127.07632)[0];
-ty = winH / 2 - prj(37.54939, 127.07632)[1];
-applyTf();
-window.addEventListener('resize', () => { fitViewBox(); applyTf(); });
-
-/* ─── 바텀시트 ─── */
-const sheetWrap = document.getElementById('sheetWrap');
-const seen = new Set(JSON.parse(localStorage.getItem('quest.seen.v1') || '[]'));
-const hudCount = document.getElementById('hudCount');
-const updateHud = () => { hudCount.textContent = seen.size; };
-updateHud();
-
-function openSheet(lm) {
-  const ph = document.getElementById('shPhoto');
-  const cr = document.getElementById('shCredit');
-  if (PHOTOS.has(lm.id)) {
-    ph.src = `img/${lm.id}.jpg`;
-    ph.style.display = 'block';
-    cr.textContent = `사진: ${CREDITS[lm.id]}, Wikimedia Commons (CC BY-SA)`;
-  } else {
-    ph.style.display = 'none';
-    cr.textContent = '';
-  }
-  document.getElementById('shEmo').textContent = lm.emoji;
-  document.getElementById('shName').textContent = lm.name;
-  const z = document.getElementById('shZone');
-  z.textContent = ZONES[lm.zone].label;
-  z.style.background = ZONES[lm.zone].color;
-  document.getElementById('shDesc').textContent = lm.desc;
-  sheetWrap.classList.add('open');
-  if (!seen.has(lm.id)) {
-    seen.add(lm.id);
-    localStorage.setItem('quest.seen.v1', JSON.stringify([...seen]));
-    updateHud();
-  }
-}
-document.getElementById('sheetBack').addEventListener('click', () => sheetWrap.classList.remove('open'));
-
-/* ─── 토스트 ─── */
-const toastEl = document.getElementById('toast');
-let toastTimer;
-function toast(msg) {
-  toastEl.textContent = msg;
-  toastEl.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
-}
-
-/* ─── 내 위치 / 데모 모드 ─── */
-const locBtn = document.getElementById('locBtn');
-const banner = document.getElementById('banner');
-const demoTag = document.getElementById('demoTag');
-let watching = null, demo = false, lastFix = null, deniedOnce = false, meLast = null, mePhase = 0;
-
-function setMe(x, y, accM) {
-  meG.setAttribute('visibility', 'visible');
-  meG.setAttribute('transform', `translate(${x} ${y})`);
-  meAcc.setAttribute('r', Math.max(0, accM > 50 ? accM * M2U : 0));
-  shareMyPos(x, y);
-}
-
-// 진행 방향(dx,dy)에 맞는 모습 선택: 위=뒷모습, 아래=앞모습, 좌우=옆모습
-function faceDirection(dx, dy, phase) {
-  if (Math.abs(dy) > Math.abs(dx) * 1.2) {
-    setAvatar(dy < 0 ? 'back' : 'front', false, phase);
-  } else {
-    setAvatar('side', dx < 0, phase);
-  }
-  setHeadingCone(Math.atan2(dx, -dy) * 180 / Math.PI); // 이동 방향으로 콘도 회전
-}
-
-/* ─── 나침반: 휴대폰이 바라보는 방향 (포켓몬GO식 콘) ─── */
-let lastMoveTs = 0;
-function setHeadingCone(deg) {
-  headingCone.setAttribute('transform', `rotate(${deg})`);
-  headingCone.setAttribute('opacity', 0.28);
-}
-function faceByHeading(deg) { // 정지 상태에서 폰 방향으로 몸도 돌리기
-  const h = ((deg % 360) + 360) % 360;
-  if (h >= 315 || h < 45) setAvatar('back', false, 0);        // 북쪽 = 뒷모습
-  else if (h < 135) setAvatar('side', false, 0);              // 동쪽 = 오른쪽 옆
-  else if (h < 225) setAvatar('front', false, 0);             // 남쪽 = 앞모습
-  else setAvatar('side', true, 0);                            // 서쪽 = 왼쪽 옆
-}
-function onHeading(e) {
-  let h = null;
-  if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading; // iOS
-  else if (typeof e.alpha === 'number' && (e.absolute || e.type === 'deviceorientationabsolute')) h = 360 - e.alpha; // Android
-  if (h === null || walking) return;
-  setHeadingCone(h);
-  if (Date.now() - lastMoveTs > 2000) faceByHeading(h); // 이동 중엔 이동 방향이 우선
-}
-let compassOn = false;
-async function enableCompass() {
-  if (compassOn) return;
-  try {
-    if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
-      if (await DeviceOrientationEvent.requestPermission() !== 'granted') return; // iOS 권한
-      window.addEventListener('deviceorientation', onHeading);
-    } else {
-      window.addEventListener('deviceorientationabsolute', onHeading);
-      window.addEventListener('deviceorientation', onHeading);
-    }
-    compassOn = true;
-  } catch (_) { /* 미지원 기기 — 이동 방향 표시로 폴백 */ }
-}
-
-function onFix(pos) {
-  const { latitude: lat, longitude: lon, accuracy } = pos.coords;
-  const now = pos.timestamp;
-  if (lastFix) {
-    const dt = (now - lastFix.t) / 1000;
-    const dm = Math.hypot(lat - lastFix.lat, lon - lastFix.lon) * 111000;
-    if (dt > 0 && dm / dt > 10) return; // 10m/s 초과 점프 폐기
-  }
-  lastFix = { lat, lon, t: now };
-  const [x, y] = prj(lat, lon);
-  if (inPark(x, y)) {
-    banner.classList.remove('show');
-    setMe(x, y, accuracy);
-    if (meLast) {
-      const mdx = x - meLast[0], mdy = y - meLast[1];
-      if (Math.hypot(mdx, mdy) > 2) {
-        mePhase += Math.hypot(mdx, mdy) * 0.35;
-        lastMoveTs = Date.now();
-        faceDirection(mdx, mdy, mePhase);
-      }
-    }
-    meLast = [x, y];
-  } else {
-    banner.classList.add('show');
-    meG.setAttribute('visibility', 'hidden');
-  }
-}
-
-locBtn.addEventListener('click', () => {
-  if (demo) { exitDemo(); return; }
-  if (watching !== null) {
-    navigator.geolocation.clearWatch(watching);
-    watching = null;
-    locBtn.classList.remove('on');
-    meG.setAttribute('visibility', 'hidden');
-    return;
-  }
-  if (!('geolocation' in navigator)) { toast('이 기기는 위치를 지원하지 않아요'); return; }
-  enableCompass(); // 사용자 제스처 시점에 나침반 권한도 함께
-  watching = navigator.geolocation.watchPosition(
-    (pos) => { locBtn.classList.add('on'); onFix(pos); },
-    (err) => {
-      navigator.geolocation.clearWatch(watching);
-      watching = null;
-      locBtn.classList.remove('on');
-      if (err.code === err.PERMISSION_DENIED) {
-        if (!deniedOnce) { toast('위치 권한 없이도 지도는 자유롭게 볼 수 있어요'); deniedOnce = true; }
-        banner.classList.add('show');
-      } else {
-        toast('위치를 찾지 못했어요. 잠시 후 다시 시도해 주세요');
-      }
-    },
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 }
-  );
-});
-
-document.getElementById('demoBtn').addEventListener('click', () => {
-  demo = true;
-  banner.classList.remove('show');
-  demoTag.classList.add('show');
-  locBtn.classList.add('on');
-  const [x, y] = prj(37.54939, 127.07632); // 정문에서 시작
-  setMe(x, y, 0);
-  toast('데모 모드: 지도를 톡 누르면 이동해요');
-});
-function exitDemo() {
-  demo = false;
-  demoTag.classList.remove('show');
-  locBtn.classList.remove('on');
-  meG.setAttribute('visibility', 'hidden');
-}
-
-/* ─── 가족 함께 보기: 초대코드 실시간 위치 공유 (미아방지) ─── */
-const SB_URL = 'https://cnvezqmnxsmdrqhagmrq.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNudmV6cW1ueHNtZHJxaGFnbXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NDA3NDUsImV4cCI6MjA5OTUxNjc0NX0.I_C7qe5WLGGmeNryrbjalRXxlQ_LNqnDG4GYKWRf7G8';
-const famBtn = document.getElementById('famBtn');
-const famWrap = document.getElementById('famWrap');
-let sb = null, famCh = null, famCode = null, lastShare = 0, famHb = null;
-// 탭 단위 ID(sessionStorage) — 같은 기기에서 탭 2개 열어 혼자 테스트도 가능
-const myId = (sessionStorage.getItem('quest.myid') || (() => {
-  const v = Math.random().toString(36).slice(2, 10);
-  sessionStorage.setItem('quest.myid', v);
-  return v;
-})());
-let myEmoji = '🧒';
-const ROLE = { '👩': '엄마', '👨': '아빠', '🧒': '아이', '🧓': '조부모' };
-const members = new Map(); // id -> {emoji, g, label, x, y, warnedAt}
-
-const famReady = () => typeof window.supabase !== 'undefined' && !SB_KEY.includes('PASTE');
-
-function memberMarker(id, emoji) {
-  const g = el('g', { class: 'fam', visibility: 'hidden' }, world); // 위치 도착 전엔 숨김
-  g.style.transition = 'transform 1.1s linear'; // 다음 위치로 미끄러지듯 이동
-  const hue = [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-  el('circle', { cx: 0, cy: 0, r: 17, fill: '#fff', stroke: `hsl(${hue} 60% 55%)`, 'stroke-width': 4 }, g);
-  const t = el('text', { x: 0, y: 7, 'font-size': 19, 'text-anchor': 'middle' }, g);
-  t.textContent = emoji;
-  const label = el('text', {
-    x: 0, y: 34, 'font-size': 13, 'font-weight': 700, 'text-anchor': 'middle',
-    fill: '#2e5540', stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke',
-  }, g);
-  return { emoji, g, label, x: null, y: null, warnedAt: 0 };
-}
-
-function upsertMember(p) {
-  if (p.id === myId) return;
-  let m = members.get(p.id);
-  if (!m) { m = memberMarker(p.id, p.e); members.set(p.id, m); renderFamList(); }
-  const first = m.x === null;
-  m.x = p.x; m.y = p.y;
-  if (first) { // 첫 위치는 즉시 배치 (멀리서 날아오는 것 방지)
-    m.g.style.transition = 'none';
-    m.g.style.transform = `translate(${p.x}px, ${p.y}px)`;
-    void m.g.getBoundingClientRect();
-    m.g.style.transition = 'transform 1.1s linear';
-  } else {
-    m.g.style.transform = `translate(${p.x}px, ${p.y}px)`;
-  }
-  m.g.setAttribute('visibility', 'visible');
-  updateFamDistances();
-}
-
-function myPos() {
-  if (meG.getAttribute('visibility') !== 'visible') return null;
-  const t = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(meG.getAttribute('transform'));
-  return t ? [+t[1], +t[2]] : null;
-}
-
-function updateFamDistances() {
-  const me = myPos();
-  for (const m of members.values()) {
-    if (m.x === null) continue;
-    if (me) {
-      const dm = Math.round(Math.hypot(m.x - me[0], m.y - me[1]) / M2U);
-      m.label.textContent = `${ROLE[m.emoji] || '가족'} ${dm}m`;
-      if (dm > 250 && Date.now() - m.warnedAt > 60000) {
-        m.warnedAt = Date.now();
-        toast(`⚠️ ${m.emoji} ${ROLE[m.emoji] || '가족'}와 ${dm}m 떨어졌어요!`);
-      }
-    } else {
-      m.label.textContent = ROLE[m.emoji] || '가족';
-    }
-  }
-  renderFamList();
-}
-
-function renderFamList() {
-  const li = document.getElementById('famList');
-  if (!members.size) { li.textContent = '아직 참여한 가족이 없어요. 코드를 알려주세요!'; return; }
-  const me = myPos();
-  li.innerHTML = '';
-  for (const m of members.values()) {
-    const row = document.createElement('div');
-    let dm = ' — 연결됨 (위치 기다리는 중)';
-    if (m.x !== null) dm = me ? ` — ${Math.round(Math.hypot(m.x - me[0], m.y - me[1]) / M2U)}m` : ' — 지도에 표시됨';
-    row.textContent = `${m.emoji} ${ROLE[m.emoji] || '가족'}${dm}`;
-    li.appendChild(row);
-  }
-}
-
-function shareMyPos(x, y) {
-  if (!famCh || Date.now() - lastShare < 1000) return; // 1초마다 전송
-  lastShare = Date.now();
-  famCh.send({ type: 'broadcast', event: 'pos', payload: { id: myId, e: myEmoji, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 } });
-}
-
-function famJoin(code) {
-  if (!famReady()) { toast('가족 공유 기능을 준비하고 있어요'); return; }
-  code = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (code.length !== 6) { toast('코드는 6자리예요'); return; }
-  if (!sb) sb = window.supabase.createClient(SB_URL, SB_KEY);
-  if (famCh) famLeave(false);
-  famCode = code;
-  famCh = sb.channel(`fam-${code}`, { config: { presence: { key: myId }, broadcast: { self: false } } });
-  famCh.on('broadcast', { event: 'pos' }, ({ payload }) => upsertMember(payload));
-  // presence sync: 위치가 아직 없어도 연결된 가족은 즉시 목록에 표시, 나간 가족은 제거
-  famCh.on('presence', { event: 'sync' }, () => {
-    const st = famCh.presenceState();
-    for (const [key, metas] of Object.entries(st)) {
-      if (key === myId || members.has(key)) continue;
-      members.set(key, memberMarker(key, (metas[0] && metas[0].e) || '👤'));
-    }
-    for (const key of [...members.keys()]) {
-      if (!st[key]) { members.get(key).g.remove(); members.delete(key); }
-    }
-    renderFamList();
-  });
-  famCh.subscribe((st) => {
-    if (st === 'SUBSCRIBED') {
-      famCh.track({ e: myEmoji });
-      famBtn.classList.add('on');
-      document.getElementById('famStart').style.display = 'none';
-      document.getElementById('famOn').style.display = 'block';
-      document.getElementById('famCodeShow').textContent = famCode;
-      // 초대 링크 QR (카메라로 찍으면 자동 참여)
-      const qr = document.getElementById('famQR');
-      qr.innerHTML = '';
-      if (typeof QRCode !== 'undefined') {
-        new QRCode(qr, { text: famLink(), width: 120, height: 120, correctLevel: QRCode.CorrectLevel.M });
-      }
-      renderFamList();
-      toast(`가족 코드 ${famCode} 연결됐어요`);
-      // 4초마다 내 위치 재전송 — 늦게 들어온 가족도 곧바로 나를 봄
-      clearInterval(famHb);
-      famHb = setInterval(() => {
-        const me = myPos();
-        if (me) { lastShare = 0; shareMyPos(me[0], me[1]); }
-      }, 4000);
-    } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
-      toast('연결에 실패했어요. 잠시 후 다시 시도해 주세요');
-      famLeave(false);
-    }
-  });
-}
-
-function famLeave(ui = true) {
-  clearInterval(famHb);
-  famHb = null;
-  if (famCh) { famCh.unsubscribe(); famCh = null; }
-  famCode = null;
-  for (const m of members.values()) m.g.remove();
-  members.clear();
-  famBtn.classList.remove('on');
-  document.getElementById('famStart').style.display = 'block';
-  document.getElementById('famOn').style.display = 'none';
-  if (ui) toast('가족 공유를 끝냈어요');
-}
-
-famBtn.addEventListener('click', () => famWrap.classList.add('open'));
-document.getElementById('famBack').addEventListener('click', () => famWrap.classList.remove('open'));
-document.querySelectorAll('#famModal .who button').forEach((b) => {
-  b.addEventListener('click', () => {
-    document.querySelectorAll('#famModal .who button').forEach((x) => x.classList.remove('sel'));
-    b.classList.add('sel');
-    myEmoji = b.dataset.e;
-    if (famCh) famCh.track({ e: myEmoji });
-  });
-});
-document.getElementById('famMake').addEventListener('click', () => {
-  const abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 헷갈리는 I/L/O/0/1 제외
-  let code = '';
-  for (let i = 0; i < 6; i++) code += abc[Math.floor(Math.random() * abc.length)];
-  famJoin(code);
-});
-document.getElementById('famJoin').addEventListener('click', () => famJoin(document.getElementById('famCode').value));
-document.getElementById('famLeave').addEventListener('click', () => famLeave());
-
-const famLink = () => `${location.origin}${location.pathname}?fam=${famCode}`;
-document.getElementById('famShare').addEventListener('click', async () => {
-  const url = famLink();
-  try {
-    if (navigator.share) {
-      await navigator.share({ title: '공원 원정대 — 가족 함께 보기', text: `초대코드 ${famCode} — 누르면 바로 연결돼요`, url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      toast('초대 링크를 복사했어요. 가족에게 붙여넣어 보내세요!');
-    }
-  } catch (_) { /* 공유 취소 */ }
-});
-
-// 초대 링크(?fam=코드)로 들어오면 자동 참여
-const famParam = new URLSearchParams(location.search).get('fam');
-if (famParam) {
-  famWrap.classList.add('open');
-  famJoin(famParam);
-}
-
-/* ─── 산책 데모 (포켓몬GO식 자동 이동) ─── */
-const walkBtn = document.getElementById('walkBtn');
-const R = MAP.walkRoute;
-const cum = [0];
-for (let i = 1; i < R.length; i++) {
-  cum.push(cum[i - 1] + Math.hypot(R[i][0] - R[i - 1][0], R[i][1] - R[i - 1][1]));
-}
-const ROUTE_LEN = cum[cum.length - 1];
-const WALK_SPEED = 26; // 유닛/초 (실지도 기준 ≈ 도보 5배속)
-
-function posAt(s) {
-  s = Math.max(0, Math.min(ROUTE_LEN, s));
-  let i = 1;
-  while (i < cum.length - 1 && cum[i] < s) i++;
-  const t = (s - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
-  const x = R[i - 1][0] + (R[i][0] - R[i - 1][0]) * t;
-  const y = R[i - 1][1] + (R[i][1] - R[i - 1][1]) * t;
-  return { x, y, dx: R[i][0] - R[i - 1][0], dy: R[i][1] - R[i - 1][1] };
-}
-
-let walking = false, walkS = 0, walkRaf = null, lastTs = 0, recording = false;
-const walkVisited = new Set();
-
-function pinPop(p) {
-  const ring = el('circle', { cx: p.x, cy: p.y, r: 27, fill: 'none', stroke: ZONES[p.lm.zone].color, 'stroke-width': 6 }, world);
-  const a1 = el('animate', { attributeName: 'r', values: '27;70', dur: '0.9s', fill: 'freeze' }, ring);
-  el('animate', { attributeName: 'opacity', values: '1;0', dur: '0.9s', fill: 'freeze' }, ring);
-  a1.beginElement && a1.beginElement();
-  setTimeout(() => ring.remove(), 1000);
-}
-
-function renderWalk() {
-  const p = posAt(walkS);
-  // 걸음 통통 효과 + 진행 방향 바라보기
-  const bob = Math.sin(walkS * 1.8) * 1.2;
-  setMe(p.x, p.y + bob, 0);
-  faceDirection(p.dx, p.dy, walkS * 0.9);
-  tx = winW / 2 - p.x * k;
-  ty = winH / 2 - p.y * k;
-  applyTf();
-  for (const pe of pinEls) {
-    if (walkVisited.has(pe.lm.id)) continue;
-    if (Math.hypot(pe.x - p.x, pe.y - p.y) < 45) {
-      walkVisited.add(pe.lm.id);
-      pinPop(pe);
-      toast(`${pe.lm.emoji} ${pe.lm.name} 도착!`);
-      if (!seen.has(pe.lm.id)) {
-        seen.add(pe.lm.id);
-        localStorage.setItem('quest.seen.v1', JSON.stringify([...seen]));
-        updateHud();
-      }
-    }
-  }
-}
-
-function walkFrame(ts) {
-  if (!walking) return;
-  if (lastTs) walkS += Math.min(0.1, (ts - lastTs) / 1000) * WALK_SPEED;
-  lastTs = ts;
-  renderWalk();
-  if (walkS >= ROUTE_LEN) { stopWalk(); toast('🎉 산책 완주! 랜드마크를 모두 지나왔어요'); return; }
-  walkRaf = requestAnimationFrame(walkFrame);
-}
-
-function startWalk(rec) {
-  recording = !!rec;
-  walking = true;
-  walkS = 0;
-  lastTs = 0;
-  walkVisited.clear();
-  exitDemo();
-  if (watching !== null) { navigator.geolocation.clearWatch(watching); watching = null; locBtn.classList.remove('on'); }
-  walkBtn.classList.add('on');
-  walkBtn.textContent = '⏹';
-  routeEl.setAttribute('opacity', 0.85);
-  k = 2.6;
-  renderWalk();
-  if (!recording) walkRaf = requestAnimationFrame(walkFrame);
-}
-
-function stopWalk() {
-  walking = false;
-  if (walkRaf) cancelAnimationFrame(walkRaf);
-  walkBtn.classList.remove('on');
-  walkBtn.textContent = '🚶';
-  routeEl.setAttribute('opacity', 0);
-  meG.setAttribute('visibility', 'hidden');
-}
-
-walkBtn.addEventListener('click', () => { walking ? stopWalk() : startWalk(false); });
-
-// 영상 캡처용 결정적 훅 (?rec=1 로 열면 자동재생 없이 외부에서 프레임 지정)
-window.__walk = {
-  len: ROUTE_LEN,
-  to(s) { if (!walking) startWalk(true); walkS = s; renderWalk(); },
-  stop: stopWalk,
-};
-if (new URLSearchParams(location.search).get('walk') === '1') startWalk(false);
-
-/* ─── 코치마크 ─── */
-const coach = document.getElementById('coach');
-if (!localStorage.getItem('quest.coach.v1')) coach.classList.add('show');
-document.getElementById('coachBtn').addEventListener('click', () => {
-  coach.classList.remove('show');
-  localStorage.setItem('quest.coach.v1', '1');
-});
+<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+}}
 </script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>

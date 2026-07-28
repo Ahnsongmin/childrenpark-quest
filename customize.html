@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>내 캐릭터 만들기 — 공원 원정대</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👕</text></svg>">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    background: #cfe3d2; display: flex; justify-content: center;
+  }
+  #frame {
+    position: relative; width: 100%; max-width: 480px; min-height: 100dvh;
+    background: linear-gradient(#bfe3f2, #eaf6e6 60%); overflow-y: auto;
+    box-shadow: 0 0 24px rgba(0,0,0,.12); padding-bottom: 24px;
+  }
+  header { padding: 18px 18px 6px; }
+  header h1 { font-size: 19px; color: #2e6b34; }
+  header p { font-size: 12px; color: #6a8a70; margin-top: 4px; }
+  #preview { display: block; width: 100%; height: 280px; touch-action: pan-y; }
+  .panel { margin: 0 16px 12px; background: #ffffffee; border-radius: 18px; padding: 14px 16px;
+    box-shadow: 0 3px 12px rgba(0,0,0,.08); }
+  .panel h3 { font-size: 12px; color: #7ba381; margin-bottom: 8px; }
+  .opts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .opts button {
+    flex: 1; min-width: 100px; border: 2px solid #e2e8e2; border-radius: 14px; background: #fff;
+    font-size: 14px; font-weight: 700; color: #445; padding: 12px 8px; cursor: pointer;
+  }
+  .opts button.sel { border-color: #2e6b34; background: #eef7e8; color: #2e6b34; }
+  .opts button:disabled { opacity: .35; cursor: default; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+  input#nameInput {
+    width: 100%; border: 2px solid #e2e8e2; border-radius: 14px; padding: 12px 14px; font-size: 15px;
+  }
+  #saveBtn {
+    display: block; margin: 4px 16px 0; width: calc(100% - 32px); border: 0; border-radius: 16px;
+    background: #2e6b34; color: #fff; font-size: 16px; font-weight: 800; padding: 15px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(46,107,52,.35);
+  }
+  #backLink { display: block; text-align: center; margin-top: 12px; font-size: 12px; color: #7ba381; }
+</style>
+</head>
+<body>
+<div id="frame">
+  <header>
+    <h1>👕 내 캐릭터 만들기</h1>
+    <p>지도 위를 걸어다닐 나만의 캐릭터를 꾸며 보세요!</p>
+  </header>
+  <canvas id="preview"></canvas>
+
+  <div class="panel">
+    <h3>성별</h3>
+    <div class="opts" id="genderOpts">
+      <button data-v="m">👦 남자</button>
+      <button data-v="f">👧 여자</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>스타일</h3>
+    <div class="opts" id="styleOpts">
+      <button data-v="basic">👕 티셔츠 + 바지</button>
+      <button data-v="dress">👗 원피스</button>
+    </div>
+  </div>
+
+  <div class="panel" id="topPanel">
+    <h3>상의</h3>
+    <div class="opts" id="topOpts"></div>
+  </div>
+
+  <div class="panel" id="bottomPanel">
+    <h3>하의</h3>
+    <div class="opts" id="bottomOpts"></div>
+  </div>
+
+  <div class="panel">
+    <h3>이름 (가족 지도에 함께 표시돼요)</h3>
+    <input id="nameInput" maxlength="8" placeholder="예: 민준" autocomplete="off">
+  </div>
+
+  <button id="saveBtn">✅ 저장하고 지도로!</button>
+  <a id="backLink" href="index.html">저장 없이 지도로 돌아가기</a>
+</div>
+
+<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { buildChibi, loadAvatar, saveAvatar, TOPS, BOTTOMS } from './js/character.js';
+
+const cfg = loadAvatar();
+const $ = (id) => document.getElementById(id);
+
+/* ─── 미리보기 씬 (턴테이블) ─── */
+const canvas = $('preview');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 200);
+camera.position.set(0, 9, 26);
+camera.lookAt(0, 5.6, 0);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight('#eaf6ff', '#9fcf8a', 1.2));
+const sun = new THREE.DirectionalLight('#fff6e0', 1.5);
+sun.position.set(6, 12, 8);
+scene.add(sun);
+const stage = new THREE.Mesh(
+  new THREE.CylinderGeometry(6, 6.6, 1, 28),
+  new THREE.MeshLambertMaterial({ color: '#bfe0a8' }),
+);
+stage.position.y = -0.55;
+scene.add(stage);
+
+let chibi = null;
+function rebuild() {
+  if (chibi) {
+    scene.remove(chibi.group);
+    chibi.group.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    });
+  }
+  chibi = buildChibi(cfg);
+  scene.add(chibi.group);
+}
+rebuild();
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+let prev = 0;
+function frame(ts) {
+  const t = ts / 1000;
+  const dt = Math.min(0.1, prev ? t - prev : 0.016);
+  prev = t;
+  chibi.group.rotation.y += dt * 0.9;          // 턴테이블
+  chibi.setPhase(t * 5);                        // 제자리 걷기 (살아있는 느낌)
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ─── 옵션 UI ─── */
+function renderOpts(el, defs, selIdx, onPick, disabled) {
+  el.innerHTML = '';
+  defs.forEach((d, i) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="swatch" style="background:${d.color}"></span>${d.label}`;
+    if (i === selIdx) b.classList.add('sel');
+    b.disabled = !!disabled;
+    b.addEventListener('click', () => onPick(i));
+    el.appendChild(b);
+  });
+}
+
+function sync() {
+  for (const b of $('genderOpts').children) b.classList.toggle('sel', b.dataset.v === cfg.gender);
+  for (const b of $('styleOpts').children) b.classList.toggle('sel', (b.dataset.v === 'dress') === cfg.dress);
+  renderOpts($('topOpts'), TOPS, cfg.top, (i) => { cfg.top = i; sync(); }, cfg.dress);
+  renderOpts($('bottomOpts'), BOTTOMS, cfg.bottom, (i) => { cfg.bottom = i; sync(); }, cfg.dress);
+  $('topPanel').style.opacity = cfg.dress ? 0.45 : 1;
+  $('bottomPanel').style.opacity = cfg.dress ? 0.45 : 1;
+  rebuild();
+}
+for (const b of $('genderOpts').children) b.addEventListener('click', () => { cfg.gender = b.dataset.v; sync(); });
+for (const b of $('styleOpts').children) b.addEventListener('click', () => { cfg.dress = b.dataset.v === 'dress'; sync(); });
+$('nameInput').value = cfg.name || '';
+sync();
+
+$('saveBtn').addEventListener('click', () => {
+  cfg.name = $('nameInput').value.trim().slice(0, 8);
+  saveAvatar(cfg);
+  location.href = 'index.html';
+});
+</script>
+</body>
+</html>
