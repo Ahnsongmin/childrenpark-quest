@@ -85,6 +85,15 @@
     <input id="nameInput" maxlength="8" placeholder="예: 민준" autocomplete="off">
   </div>
 
+  <div class="panel">
+    <h3>나이 (딱 맞는 탐험과 퀴즈를 준비해요)</h3>
+    <div class="opts" id="ageOpts">
+      <button data-v="5">5~7살</button>
+      <button data-v="8">8~10살</button>
+      <button data-v="11">11살~</button>
+    </div>
+  </div>
+
   <button id="saveBtn">✅ 저장하고 지도로!</button>
   <a id="backLink" href="index.html">저장 없이 지도로 돌아가기</a>
 </div>
@@ -99,8 +108,10 @@
 <script type="module">
 import * as THREE from 'three';
 import { buildChibi, loadAvatar, saveAvatar, TOPS, BOTTOMS } from './js/character.js';
+import { loadJSON, saveJSON } from './js/store.js';
 
 const cfg = loadAvatar();
+const profile = loadJSON('quest.profile.v1', { age: null });
 const $ = (id) => document.getElementById(id);
 
 /* ─── 미리보기 씬 (턴테이블) ─── */
@@ -182,11 +193,17 @@ function sync() {
 for (const b of $('genderOpts').children) b.addEventListener('click', () => { cfg.gender = b.dataset.v; sync(); });
 for (const b of $('styleOpts').children) b.addEventListener('click', () => { cfg.dress = b.dataset.v === 'dress'; sync(); });
 $('nameInput').value = cfg.name || '';
+const syncAge = () => {
+  for (const b of $('ageOpts').children) b.classList.toggle('sel', profile.age !== null && +b.dataset.v === profile.age);
+};
+for (const b of $('ageOpts').children) b.addEventListener('click', () => { profile.age = +b.dataset.v; syncAge(); });
+syncAge();
 sync();
 
 $('saveBtn').addEventListener('click', () => {
   cfg.name = $('nameInput').value.trim().slice(0, 8);
   saveAvatar(cfg);
+  saveJSON('quest.profile.v1', profile);
   location.href = 'index.html';
 });
 </script>

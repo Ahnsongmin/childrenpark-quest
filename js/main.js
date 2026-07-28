@@ -6,7 +6,9 @@ import { createMarkers } from './markers.js';
 import { createCameraCtl } from './cameraCtl.js';
 import { buildChibi, loadAvatar, saveAvatar } from './character.js';
 import { initFamily } from './family.js';
-import { openSheet, toast, updateHud, markSeen, seen, initTutorial } from './ui.js';
+import { openSheet, toast, updateHud, markSeen, setHudRefresh, initTutorial } from './ui.js';
+import { initQuests } from './quest.js';
+import { initQuestUI } from './questUI.js';
 
 /* global MAP — mapdata.js 전역 */
 const $ = (id) => document.getElementById(id);
@@ -73,6 +75,7 @@ function setMe(x, z, accM) {
   meG.position.set(x, 0, z);
   meAcc.scale.setScalar(Math.max(0.001, accM > 50 ? accM * M2U : 0.001));
   famApi.shareMyPos(x, z);
+  quests.onPosition(x, z); // 지오펜스: 동물 우리 근접 시 탐험 활성
 }
 const myPos = () => (meG.visible ? [meG.position.x, meG.position.z] : null);
 
@@ -300,6 +303,13 @@ const famApi = initFamily({
   setName: (v) => { avatarCfg.name = v.slice(0, 8); saveAvatar(avatarCfg); },
   getAv: () => ({ gender: avatarCfg.gender, dress: avatarCfg.dress, top: avatarCfg.top, bottom: avatarCfg.bottom }),
 });
+
+/* ─── 탐험 시스템 ─── */
+let qui = null;
+const quests = initQuests({ onNear: (spot, fresh) => { if (qui) qui.onNear(spot, fresh); } });
+qui = initQuestUI(quests);
+setHudRefresh(qui.refresh);
+window.__quests = quests; // 콘솔 디버그·시연용
 
 /* ─── UI ─── */
 updateHud();

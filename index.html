@@ -64,7 +64,7 @@
   #demoTag.show { display: block; }
 
   /* 우측 버튼 스택 */
-  #locBtn, #walkBtn, #famBtn, #dressBtn {
+  #locBtn, #walkBtn, #famBtn, #dressBtn, #recBtn {
     position: absolute; right: 14px; z-index: 5;
     width: 48px; height: 48px; border-radius: 50%; border: 0;
     background: #fff; font-size: 22px; cursor: pointer;
@@ -74,6 +74,7 @@
   #walkBtn { bottom: 152px; }
   #famBtn { bottom: 208px; }
   #dressBtn { bottom: 264px; }
+  #recBtn { bottom: 320px; }
   #locBtn.on { background: #3b82f6; }
   #walkBtn.on { background: #f5b83d; }
   #famBtn.on { background: #7ed695; }
@@ -193,6 +194,110 @@
     font-size: 14px; font-weight: 800; padding: 10px 22px; cursor: pointer;
   }
 
+  /* 탐험 시트 */
+  #questWrap { position: absolute; inset: 0; z-index: 11; display: none; }
+  #questWrap.open { display: block; }
+  #questBack { position: absolute; inset: 0; background: rgba(0,0,0,.25); }
+  #questSheet {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 72%; overflow-y: auto;
+    background: #fff; border-radius: 22px 22px 0 0; padding: 16px 18px 26px;
+    box-shadow: 0 -6px 24px rgba(0,0,0,.2); animation: up .22s ease-out;
+  }
+  #questSheet .grip { width: 40px; height: 4px; border-radius: 2px; background: #ddd; margin: 0 auto 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip {
+    font-size: 12px; font-weight: 700; color: #44614a; background: #eef7e8;
+    border: 1px solid #d6e8d0; border-radius: 12px; padding: 5px 10px;
+  }
+  button.chip.pick { cursor: pointer; font-size: 14px; padding: 10px 12px; }
+  .qcard {
+    margin-top: 12px; background: #f7faf4; border: 1px solid #e4eede; border-radius: 14px;
+    padding: 12px 14px; font-size: 13px; color: #334;
+  }
+  .qq { margin-top: 6px; font-size: 14.5px; line-height: 1.55; color: #223; }
+  .qsub { margin-top: 4px; font-size: 11.5px; color: #8a9a80; line-height: 1.5; }
+  .qopts { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+  .qopts button {
+    border: 2px solid #dfe8da; border-radius: 12px; background: #fff; font-size: 14px;
+    padding: 10px 12px; text-align: left; cursor: pointer;
+  }
+  .qopts button.ok { border-color: #2e6b34; background: #eef7e8; }
+  .qopts button.no { border-color: #d97706; background: #fef4e6; }
+  .qexplain {
+    margin-top: 10px; background: #fffbe8; border: 1px solid #f0e1a0; border-radius: 12px;
+    padding: 10px 12px; font-size: 13px; line-height: 1.6; color: #5a4d20;
+  }
+  .qcard textarea {
+    width: 100%; margin-top: 8px; border: 2px solid #dfe8da; border-radius: 12px;
+    padding: 9px 11px; font-size: 14px; font-family: inherit; resize: none;
+  }
+  .qrow { display: flex; gap: 8px; margin-top: 8px; }
+  .qbtn {
+    flex: 1; border: 0; border-radius: 12px; background: #2e6b34; color: #fff;
+    font-size: 13.5px; font-weight: 700; padding: 10px 12px; cursor: pointer;
+  }
+  .qbtn.ghost { background: #eef7e8; color: #2e6b34; }
+  .qthumb { height: 74px; border-radius: 10px; margin: 8px 6px 0 0; }
+  .qdone { font-size: 12px; color: #2e6b34; font-weight: 700; margin-left: 6px; }
+  .trow {
+    display: flex; align-items: center; gap: 8px; margin-top: 9px; font-size: 14px; color: #334;
+    background: #f7faf4; border: 1px solid #e4eede; border-radius: 12px; padding: 10px 12px;
+  }
+  .trow span { margin-left: auto; font-size: 11.5px; color: #8a9a80; }
+
+  /* 내 기록 */
+  #recWrap { position: absolute; inset: 0; z-index: 13; display: none; }
+  #recWrap.open { display: block; }
+  #recBack { position: absolute; inset: 0; background: rgba(0,0,0,.3); }
+  #recModal {
+    position: absolute; left: 12px; right: 12px; top: 7%; bottom: 7%;
+    background: #fff; border-radius: 20px; padding: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3); display: flex; flex-direction: column;
+  }
+  #recTabs { display: flex; gap: 6px; }
+  #recTabs button {
+    flex: 1; border: 0; border-radius: 12px; background: #f0f4ee; color: #667;
+    font-size: 12px; font-weight: 700; padding: 9px 4px; cursor: pointer;
+  }
+  #recTabs button.sel { background: #2e6b34; color: #fff; }
+  #recBody { flex: 1; overflow-y: auto; margin-top: 12px; }
+  .medal {
+    background: #fffbe8; border: 1px solid #f0e1a0; border-radius: 12px;
+    padding: 9px 12px; font-size: 13px; color: #5a4d20;
+  }
+  .medal span { font-size: 11px; color: #9a8c50; }
+  .dexgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  .dexcell {
+    background: #f7faf4; border: 1px solid #e4eede; border-radius: 12px; padding: 8px 4px;
+    text-align: center; cursor: pointer;
+  }
+  .dexcell.locked { opacity: .45; }
+  .dexemo { font-size: 26px; height: 34px; }
+  .dexphoto { width: 34px; height: 34px; object-fit: cover; border-radius: 8px; }
+  .dexname { font-size: 10px; font-weight: 700; color: #44614a; margin-top: 3px; line-height: 1.2; }
+  .dexdate { font-size: 9px; color: #a0b09a; }
+  .ncard, .rcard {
+    background: #f7faf4; border: 1px solid #e4eede; border-radius: 12px;
+    padding: 10px 12px; font-size: 13px; color: #334; margin-top: 9px; line-height: 1.55;
+  }
+  .ndate { font-size: 10.5px; color: #8a9a80; margin-bottom: 3px; }
+  .rquiz { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #dfe8da; font-size: 12.5px; }
+  .rphotos { display: flex; flex-wrap: wrap; margin-top: 8px; }
+  #recBody .qbtn { width: 100%; margin-top: 12px; }
+
+  /* 재방문 인사 말풍선 */
+  #greet {
+    position: absolute; left: 12px; bottom: 76px; z-index: 14; display: none;
+    align-items: flex-end; gap: 8px; cursor: pointer;
+  }
+  #greet.show { display: flex; }
+  #greet img { height: 84px; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+  #greet .bubble {
+    background: #fff; border-radius: 14px; padding: 10px 13px; max-width: 230px;
+    font-size: 13px; line-height: 1.5; color: #334; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+    margin-bottom: 18px;
+  }
+
   #toast {
     position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%);
     background: #333c; color: #fff; font-size: 12px; border-radius: 20px;
@@ -224,6 +329,7 @@
   <button id="walkBtn" aria-label="산책 데모">🚶</button>
   <button id="famBtn" aria-label="가족 함께 보기">👪</button>
   <button id="dressBtn" aria-label="내 캐릭터 꾸미기">👕</button>
+  <button id="recBtn" aria-label="내 기록">📔</button>
 
   <div id="famWrap">
     <div id="famBack"></div>
@@ -256,8 +362,33 @@
 
   <div id="hud">
     <span style="font-size:22px">🗺️</span>
-    <div><span class="n" id="hudCount">0</span> / 16 랜드마크 발견<br>이모지 핀을 눌러 어떤 곳인지 알아보세요</div>
+    <div>공원 원정대를 준비하고 있어요…</div>
   </div>
+
+  <div id="questWrap">
+    <div id="questBack"></div>
+    <div id="questSheet"></div>
+  </div>
+
+  <div id="recWrap">
+    <div id="recBack"></div>
+    <div id="recModal">
+      <div id="recTabs">
+        <button data-t="dex" class="sel">📔 발견일지</button>
+        <button data-t="notes">🔍 관찰노트</button>
+        <button data-t="recap">🌟 오늘의 리캡</button>
+        <button data-t="growth">🌱 성장 기록</button>
+      </div>
+      <div id="recBody"></div>
+    </div>
+  </div>
+
+  <div id="greet">
+    <img src="img/liniwani.avif" alt="리니워니" onerror="this.style.display='none'">
+    <div class="bubble" id="greetText"></div>
+  </div>
+
+  <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
 
   <div id="credit">지도 데이터 © OpenStreetMap contributors</div>
 
@@ -270,7 +401,7 @@
         <div><h2 id="shName"></h2><span class="zone" id="shZone"></span></div>
       </div>
       <p id="shDesc"></p>
-      <div class="soon">🎯 곧 이곳에서 미션이 열려요! (준비 중)</div>
+      <div class="soon" id="shSoon"></div>
     </div>
   </div>
 
