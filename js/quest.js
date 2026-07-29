@@ -101,6 +101,18 @@ export function initQuests({ onNear } = {}) {
       return v.assign.spots.includes(spotId) || v.assign.dwell === spotId;
     },
 
+    markMet(spotId) { // 우리 안 동물들을 발견일지에 등재 (지오펜스·마을 입장 공용)
+      const s = spotById.get(spotId);
+      if (!s || s.kind !== 'animal') return;
+      const v = ensureVisit();
+      let changed = false;
+      for (const a of s.animals) {
+        if (!v.met.includes(a)) { v.met.push(a); changed = true; }
+        if (!log.dex[a]) { log.dex[a] = { first: v.date, photo: null }; changed = true; }
+      }
+      if (changed) save();
+    },
+
     onPosition(x, z) {
       let best = null, bestD = RADIUS;
       for (const s of SPOTS) {
@@ -110,15 +122,7 @@ export function initQuests({ onNear } = {}) {
       }
       if ((best && best.id) !== (near && near.id)) {
         near = best;
-        if (best && best.kind === 'animal') { // 우리 진입 = 동물들과 만남 → 발견일지
-          const v = ensureVisit();
-          let changed = false;
-          for (const a of best.animals) {
-            if (!v.met.includes(a)) { v.met.push(a); changed = true; }
-            if (!log.dex[a]) { log.dex[a] = { first: v.date, photo: null }; changed = true; }
-          }
-          if (changed) save();
-        }
+        if (best && best.kind === 'animal') api.markMet(best.id); // 우리 진입 = 동물들과 만남
         const fresh = best && api.isAssigned(best.id) && !announced.has(best.id) && !api.spotDone(best.id);
         if (fresh) announced.add(best.id);
         if (onNear) onNear(best, fresh);

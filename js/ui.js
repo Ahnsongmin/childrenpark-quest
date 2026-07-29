@@ -27,6 +27,9 @@ export function openSheet(lm) {
   $('shDesc').textContent = lm.desc;
   const spot = SPOTS.find((s) => (s.lm || s.id) === lm.id);
   const soon = $('shSoon');
+  const enter = $('shEnter');
+  enter.style.display = spot && spot.kind === 'animal' ? 'block' : 'none';
+  if (spot) enter.dataset.spot = spot.id;
   if (spot && spot.kind === 'animal') {
     soon.innerHTML = `이곳 친구들: ${spot.animals.map((a) => `${ANIMALS[a].emoji} ${ANIMALS[a].name}`).join(' · ')}<br>가까이 가면 탐험이 열릴지도 몰라요!`;
   } else if (spot) {

@@ -1,6 +1,6 @@
 /* 공원 원정대 서비스 워커 — 오프라인 지원 (앱 셸 사전 캐시 + 갱신형 캐시)
    배포 시 자산이 바뀌면 VERSION을 올려야 이전 캐시가 정리된다. */
-const VERSION = 'quest-v5-3';
+const VERSION = 'quest-v6-1';
 const PRECACHE = [
   './',
   'index.html',
@@ -9,14 +9,17 @@ const PRECACHE = [
   'manifest.webmanifest',
   'js/config.js', 'js/geo.js', 'js/ground.js', 'js/scene.js', 'js/markers.js',
   'js/character.js', 'js/cameraCtl.js', 'js/family.js', 'js/ui.js', 'js/main.js',
-  'js/quests-data.js', 'js/quest.js', 'js/questUI.js', 'js/store.js',
+  'js/quests-data.js', 'js/quest.js', 'js/questUI.js', 'js/store.js', 'js/interior.js',
   'img/liniwani.avif',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
 ];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(VERSION).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()),
+    caches.open(VERSION)
+      // HTTP 캐시 우회(no-cache): 새 버전 설치 시 항상 서버에서 최신 파일을 받아 굽는다
+      .then((c) => c.addAll(PRECACHE.map((u) => new Request(u, { cache: 'no-cache' }))))
+      .then(() => self.skipWaiting()),
   );
 });
 

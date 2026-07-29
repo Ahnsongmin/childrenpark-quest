@@ -6,8 +6,9 @@ import { toast, seen } from './ui.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-export function initQuestUI(quests) {
+export function initQuestUI(quests, opts = {}) {
   const hud = $('hud');
+  const frame = $('frame');
   hud.style.pointerEvents = 'auto';
   hud.style.cursor = 'pointer';
 
@@ -29,6 +30,7 @@ export function initQuestUI(quests) {
 
   /* ── 근처 카드 ── */
   function renderHud() {
+    if (frame.classList.contains('inZone')) return; // 마을 안에서는 interior가 HUD 관리
     const near = quests.near;
     const p = quests.todayProgress();
     if (near && near.kind === 'animal') {
@@ -68,6 +70,9 @@ export function initQuestUI(quests) {
     let html = `<div class="grip"></div><h2 style="font-size:18px;color:#223">${spot.emoji} ${esc(spot.name)}</h2>`;
     if (spot.kind === 'animal') {
       html += `<div class="chips">${spot.animals.map((a) => `<span class="chip">${ANIMALS[a].emoji} ${esc(ANIMALS[a].name)}</span>`).join('')}</div>`;
+      if (opts.onEnterZone && !frame.classList.contains('inZone')) {
+        html += `<div class="qrow"><button class="qbtn" id="qEnter">🚪 마을 안 둘러보기</button></div>`;
+      }
     }
     for (const q of qs) {
       if (q.type === 'quiz') html += quizBlock(spot, q);
@@ -117,6 +122,8 @@ export function initQuestUI(quests) {
   }
 
   function bindSheet(spot, qs) {
+    const enter = $('qEnter');
+    if (enter) enter.addEventListener('click', () => { closeSheet(); opts.onEnterZone(spot); });
     const quizEl = $('qQuiz');
     if (quizEl) {
       quizEl.querySelectorAll('.qopts button').forEach((b) => b.addEventListener('click', () => {
@@ -181,27 +188,54 @@ export function initQuestUI(quests) {
     }
   }
 
-  /* 사진 찍고 어떤 동물인지 고르기 → 발견 탐험 판정 + 발견일지 저장 */
+  /* 촬영 결과: 발견 탐험 판정 + 발견일지 저장 + 동물 설명 */
+  function showCaptureResult(aid, photoId) {
+    const r = quests.addDiscoveryPhoto(aid, photoId);
+    const a = ANIMALS[aid];
+    let html = `<div class="grip"></div><h2 style="font-size:17px;color:#223">${a.emoji} ${esc(a.name)}</h2>
+      <p style="margin-top:8px;font-size:14px;line-height:1.6;color:#445">${esc(a.desc)}</p>`;
+    if (r.hit) {
+      html += `<div class="qexplain" style="display:block">✨ <b>${r.def.emoji} ${esc(r.def.title)}</b> ${r.got.length}/${r.def.need} 발견!${r.done ? '<br>🎉 오늘의 발견 탐험 완성!' : ''}</div>`;
+    }
+    html += '<p class="qsub">📔 발견일지에 사진과 함께 저장됐어요.</p>';
+    qSheet.innerHTML = html;
+    qWrap.classList.add('open');
+    renderHud();
+    if (r.done) toast(`🎉 발견 탐험 "${r.def.title}" 완성!`);
+  }
+
+  /* 사진 찍고 어떤 동물인지 고르기 */
   function pickAnimalPhoto(animalIds) {
     qSheet.innerHTML = `<div class="grip"></div><h2 style="font-size:17px;color:#223">📷 누구를 찍을까요?</h2>
       <p class="qsub">찍고 나면 발견일지에 저장돼요. 사진은 휴대폰 밖으로 나가지 않아요.</p>
       <div class="chips">${animalIds.map((a) => `<button class="chip pick" data-a="${a}">${ANIMALS[a].emoji} ${esc(ANIMALS[a].name)}</button>`).join('')}</div>`;
     qSheet.querySelectorAll('.pick').forEach((b) => b.addEventListener('click', () => {
       const aid = b.dataset.a;
-      askPhoto((id) => {
-        const r = quests.addDiscoveryPhoto(aid, id);
-        const a = ANIMALS[aid];
-        let html = `<div class="grip"></div><h2 style="font-size:17px;color:#223">${a.emoji} ${esc(a.name)}</h2>
-          <p style="margin-top:8px;font-size:14px;line-height:1.6;color:#445">${esc(a.desc)}</p>`;
-        if (r.hit) {
-          html += `<div class="qexplain" style="display:block">✨ <b>${r.def.emoji} ${esc(r.def.title)}</b> ${r.got.length}/${r.def.need} 발견!${r.done ? '<br>🎉 오늘의 발견 탐험 완성!' : ''}</div>`;
-        }
-        html += '<p class="qsub">📔 발견일지에 사진과 함께 저장됐어요.</p>';
-        qSheet.innerHTML = html;
-        renderHud();
-        if (r.done) toast(`🎉 발견 탐험 "${r.def.title}" 완성!`);
-      });
+      askPhoto((id) => showCaptureResult(aid, id));
     }));
+    qWrap.classList.add('open');
+  }
+
+  /* 마을 안에서 동물을 탭했을 때: 소개 + 사진/한 줄/탐험 */
+  function openAnimal(animalId, spot) {
+    const a = ANIMALS[animalId];
+    const hasQuest = spot && quests.isAssigned(spot.id) && !quests.spotDone(spot.id);
+    qSheet.innerHTML = `<div class="grip"></div><h2 style="font-size:18px;color:#223">${a.emoji} ${esc(a.name)}</h2>
+      <p style="margin-top:8px;font-size:14px;line-height:1.6;color:#445">${esc(a.desc)}</p>
+      <div class="qrow"><button class="qbtn ghost" id="anPhoto">📷 사진 찍기</button><button class="qbtn ghost" id="anNote">✏️ 한 줄 남기기</button></div>
+      ${hasQuest ? '<div class="qrow"><button class="qbtn" id="anQuest">💡 이곳의 탐험 열기</button></div>' : ''}
+      <div id="anArea" style="display:none"><textarea id="anText" rows="2" placeholder="이 친구에게 하고 싶은 말이나 본 것을 적어봐요"></textarea>
+      <div class="qrow"><button class="qbtn" id="anSave">저장</button></div></div>`;
+    $('anPhoto').addEventListener('click', () => askPhoto((id) => showCaptureResult(animalId, id)));
+    $('anNote').addEventListener('click', () => { $('anArea').style.display = 'block'; });
+    $('anSave').addEventListener('click', () => {
+      const t = $('anText').value.trim();
+      if (!t) return;
+      quests.saveFreeNote(spot ? spot.id : null, `${a.emoji} ${a.name}: ${t}`, null);
+      toast('✏️ 기록했어요!');
+      closeSheet();
+    });
+    if (hasQuest) $('anQuest').addEventListener('click', () => openQuestSheet(spot));
     qWrap.classList.add('open');
   }
 
@@ -334,5 +368,8 @@ export function initQuestUI(quests) {
       if (fresh) toast(`💡 ${spot.emoji} ${spot.name}에서 탐험이 열렸어요!`);
     },
     refresh: renderHud,
+    openSpot: openQuestSheet,
+    openAnimal,
+    closeSheet,
   };
 }

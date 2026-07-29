@@ -9,6 +9,7 @@ import { initFamily } from './family.js';
 import { openSheet, toast, updateHud, markSeen, setHudRefresh, initTutorial } from './ui.js';
 import { initQuests } from './quest.js';
 import { initQuestUI } from './questUI.js';
+import { createInterior } from './interior.js';
 
 /* global MAP — mapdata.js 전역 */
 const $ = (id) => document.getElementById(id);
@@ -28,8 +29,8 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  interior.resize(w / h);
 }
-resize();
 window.addEventListener('resize', resize);
 
 // 초기 뷰: 정문 부근
@@ -194,8 +195,9 @@ function exitDemo() {
   meG.visible = false;
 }
 
-/* ─── 탭: 마커 → 시트, 데모 모드 → 이동 ─── */
+/* ─── 탭: 마을 안 → interior, 마커 → 시트, 데모 모드 → 이동 ─── */
 camCtl.onTap = (cx, cy) => {
+  if (interior.active) { interior.handleTap(cx, cy); return; }
   const hit = camCtl.raycastSprites(cx, cy, markers.sprites);
   if (hit) { openSheet(hit.userData.lm); return; }
   if (demo && !walking) {
@@ -307,8 +309,42 @@ const famApi = initFamily({
 /* ─── 탐험 시스템 ─── */
 let qui = null;
 const quests = initQuests({ onNear: (spot, fresh) => { if (qui) qui.onNear(spot, fresh); } });
-qui = initQuestUI(quests);
+
+/* ─── 마을 안 내부 지도 ─── */
+const interior = createInterior({
+  renderer,
+  makeChibi: () => buildChibi(avatarCfg, 1.25),
+  onAnimalTap: (animalId, spot) => qui.openAnimal(animalId, spot),
+});
+
+function enterZone(spot) {
+  if (!spot || spot.kind !== 'animal') return;
+  if (walking) stopWalk();
+  $('sheetWrap').classList.remove('open');
+  qui.closeSheet();
+  quests.markMet(spot.id); // 마을 입장 = 동물들과 만남
+  $('frame').classList.add('inZone');
+  $('zoneName').textContent = `${spot.emoji} ${spot.name}`;
+  $('hud').innerHTML = '<span style="font-size:22px">👣</span><div>동물 친구를 <b>톡 눌러 인사</b>해 봐요!<br>바닥을 누르면 그곳으로 걸어가요</div>';
+  interior.enter(spot);
+  qui.refresh();
+  toast(`${spot.emoji} ${spot.name}에 들어왔어요!`);
+}
+function exitZone() {
+  interior.exit();
+  $('frame').classList.remove('inZone');
+  camCtl.apply();
+  qui.refresh();
+}
+$('exitZone').addEventListener('click', exitZone);
+$('shEnter').addEventListener('click', () => {
+  $('sheetWrap').classList.remove('open');
+  enterZone(quests.spotById($('shEnter').dataset.spot));
+});
+
+qui = initQuestUI(quests, { onEnterZone: enterZone });
 setHudRefresh(qui.refresh);
+resize();
 window.__quests = quests; // 콘솔 디버그·시연용
 
 /* ─── UI ─── */
@@ -343,7 +379,12 @@ function frame(ts) {
     meG.scale.setScalar(Math.min(2.2, Math.max(1, camera.position.distanceTo(meG.position) / 280)));
   }
 
-  renderer.render(scene, camera);
+  if (interior.active) {
+    interior.update(dt, t);
+    renderer.render(interior.scene, interior.camera);
+  } else {
+    renderer.render(scene, camera);
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

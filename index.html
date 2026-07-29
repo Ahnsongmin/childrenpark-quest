@@ -285,6 +285,23 @@
   .rphotos { display: flex; flex-wrap: wrap; margin-top: 8px; }
   #recBody .qbtn { width: 100%; margin-top: 12px; }
 
+  /* 마을 안(내부 지도) 모드 */
+  #zoneBar {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 6;
+    display: none; align-items: center; gap: 10px;
+    background: #ffffffee; border-radius: 20px; padding: 8px 8px 8px 16px;
+    font-size: 15px; font-weight: 800; color: #2e6b34;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15); white-space: nowrap;
+  }
+  #zoneBar button {
+    border: 0; border-radius: 14px; background: #b5544a; color: #fff;
+    font-size: 12.5px; font-weight: 800; padding: 8px 12px; cursor: pointer;
+  }
+  #frame.inZone #zoneBar { display: flex; }
+  #frame.inZone #title, #frame.inZone #helpBtn, #frame.inZone #banner, #frame.inZone #demoTag,
+  #frame.inZone #locBtn, #frame.inZone #walkBtn, #frame.inZone #famBtn, #frame.inZone #dressBtn,
+  #frame.inZone #credit { display: none; }
+
   /* 재방문 인사 말풍선 */
   #greet {
     position: absolute; left: 12px; bottom: 76px; z-index: 14; display: none;
@@ -383,6 +400,8 @@
     </div>
   </div>
 
+  <div id="zoneBar"><span id="zoneName"></span><button id="exitZone">🚪 나가기</button></div>
+
   <div id="greet">
     <img src="img/liniwani.avif" alt="리니워니" onerror="this.style.display='none'">
     <div class="bubble" id="greetText"></div>
@@ -402,6 +421,7 @@
       </div>
       <p id="shDesc"></p>
       <div class="soon" id="shSoon"></div>
+      <button class="qbtn" id="shEnter" style="width:100%;margin-top:12px;display:none">🚪 마을 안 둘러보기</button>
     </div>
   </div>
 
