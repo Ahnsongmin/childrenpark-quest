@@ -5,10 +5,11 @@ import { SPOTS, ANIMALS, DISCOVERIES, MEDALS, EXPLORER_TYPES } from './quests-da
 import { LANDMARKS } from './config.js';
 import { prj } from './geo.js';
 import { loadJSON, saveJSON } from './store.js';
+import { M2U } from './geo.js';
 
 const P_KEY = 'quest.profile.v1';
 const L_KEY = 'quest.log.v1';
-const RADIUS = 55; // 지도 유닛 (~45m) — 지오펜스 반경
+const RADIUS = 3 * M2U; // 지오펜스 반경 3m (사용자 지정 — 우리 바로 앞에서만 활성)
 
 const todayKey = () => {
   const d = new Date();
