@@ -1,42 +1,78 @@
 /* 탐험 콘텐츠 데이터
-   보유 동물·구역: 서울시설공단 공식 동물현황/구역 페이지 기준 (2026-07-28 확인)
+   보유 동물·구역: 서울시설공단 공식 동물현황(포유류 35·조류 6·파충류 7 = 48종) 및
+   동물원 관람안내의 동물사별 표 기준 (2026-07-30 전수 확인)
    - https://www.sisul.or.kr/open_content/childrenpark/guidance/animal/mammals.jsp
-   - zone_fierce / zone_grazer / zone_midget / zone_tropical / zone_sea .jsp
+   - https://www.sisul.or.kr/open_content/childrenpark/guidance/animal/guide.jsp
+   공식 표에 동물사가 안 나오는 일부 종(스라소니·붉은여우·유라시아수달·토끼 등)은
+   인접 구역으로 추정 배치 — 현장 확인 시 spot만 바꾸면 됨.
    주의: 동물원 재조성 사업(2026 착공)으로 종 구성이 바뀔 수 있음 — 배포 전 재확인 권장.
    퀴즈 정답·해설은 널리 검증된 사실만 사용. */
 
 export const ANIMALS = {
+  /* 맹수마을·코끼리사 */
   lion:      { name: '사자', emoji: '🦁', spot: 'predator', desc: '무리를 이루어 사는 큰 고양잇과 동물이에요. 사냥은 주로 암사자들이 함께 해요.' },
   tiger:     { name: '벵갈호랑이', emoji: '🐯', spot: 'predator', desc: '줄무늬가 사람 지문처럼 저마다 다른 멋쟁이 맹수예요.', tags: ['stripe'] },
   jaguar:    { name: '재규어', emoji: '🐆', spot: 'predator', desc: '장미 모양 무늬 안에 점이 있는 게 표범과 다른 점이에요. 헤엄도 잘 쳐요.', tags: ['tail'] },
   puma:      { name: '퓨마', emoji: '🐈', spot: 'predator', desc: '점프 실력이 뛰어난 아메리카의 고양잇과 동물이에요.' },
+  jackal:    { name: '검은등자칼', emoji: '🐺', spot: 'predator', desc: '등에 검은 안장을 얹은 듯한 무늬가 있는 아프리카의 들개예요. 부부가 평생 함께 사냥한답니다.' },
+  lynx:      { name: '스라소니', emoji: '🐱', spot: 'predator', desc: '귀 끝에 뾰족한 붓털이 달린 고양잇과 동물이에요. 꼬리가 뭉툭하게 짧아요.' },
+  fox:       { name: '붉은여우', emoji: '🦊', spot: 'predator', desc: '크고 뾰족한 귀와 탐스러운 꼬리를 가진 똑똑한 사냥꾼이에요.' },
+  hyena:     { name: '점박이하이에나', emoji: '🐆', spot: 'predator', desc: '웃음소리 같은 특이한 소리로 대화해요. 무리의 대장은 암컷이랍니다.' },
   elephant:  { name: '아시아코끼리', emoji: '🐘', spot: 'predator', desc: '육지에서 가장 큰 동물 중 하나! 코로 냄새 맡고, 물 마시고, 인사도 해요.', tags: ['endangered'] },
+  bear:      { name: '반달가슴곰', emoji: '🐻', spot: 'predator', desc: '가슴의 하얀 반달 무늬가 매력 포인트! 우리나라 천연기념물(제329호)이에요.', tags: ['endangered'] },
+  /* 초식동물마을 */
   zebra:     { name: '그랜트얼룩말', emoji: '🦓', spot: 'herbivore', desc: "줄무늬가 저마다 다른 얼룩말이에요. 이곳의 '세로'는 2023년 봄 잠깐 공원 밖 나들이를 다녀와 전국적으로 유명해졌답니다.", tags: ['stripe'] },
   kangaroo:  { name: '붉은캥거루', emoji: '🦘', spot: 'herbivore', desc: '아기는 콩알만 하게 태어나 엄마 주머니에서 자라요.' },
   alpaca:    { name: '알파카', emoji: '🦙', spot: 'herbivore', desc: '남아메리카에서 온 복슬복슬 친구. 털로 옷을 만들기도 해요.' },
+  guanaco:   { name: '과나코', emoji: '🦙', spot: 'herbivore', desc: '라마의 야생 친척이에요. 안데스의 높은 산에서도 거뜬히 달린답니다.' },
+  donkey:    { name: '당나귀', emoji: '🫏', spot: 'herbivore', desc: '긴 귀가 매력인 힘센 친구예요. "히힝" 대신 "히호!" 하고 울어요.' },
+  minihorse: { name: '미니말', emoji: '🐴', spot: 'herbivore', desc: '보통 말보다 훨씬 작은 미니 사이즈 말이에요. 성격이 순해서 인기 만점!' },
+  /* 꼬마동물마을 */
   meerkat:   { name: '미어캣', emoji: '🐹', spot: 'minivillage', desc: '두 발로 서서 망을 보는 사막의 파수꾼이에요.' },
   otter:     { name: '작은발톱수달', emoji: '🦦', spot: 'minivillage', desc: '세계에서 가장 작은 수달! 물갈퀴 달린 손으로 조개도 잘 만져요.', tags: ['endangered', 'swim'] },
+  euotter:   { name: '유라시아수달', emoji: '🦦', spot: 'minivillage', desc: '우리나라 강에도 사는 수달이에요. 수달은 천연기념물(제330호)! 물속 사냥의 달인이에요.', tags: ['endangered', 'swim'] },
   porcupine: { name: '아프리카포큐파인', emoji: '🦔', spot: 'minivillage', desc: '위험하면 가시를 세워 몸을 지켜요.' },
+  rabbit:    { name: '토끼', emoji: '🐰', spot: 'minivillage', desc: '긴 귀로 작은 소리도 잘 듣고 더위도 식혀요. 앞니는 평생 자란답니다.' },
+  /* 열대동물관 — 작은 포유류 */
   squirrelmonkey: { name: '다람쥐원숭이', emoji: '🐒', spot: 'tropical', desc: '긴 꼬리로 균형을 잡으며 나무 사이를 누비는 작은 원숭이예요.', tags: ['tail'] },
+  marmoset:  { name: '코먼마모셋', emoji: '🐒', spot: 'tropical', desc: '손바닥에 올라올 만큼 작은 원숭이! 나무줄기의 달콤한 진을 갉아 먹어요.' },
+  lemur:     { name: '알락꼬리여우원숭이', emoji: '🐒', spot: 'tropical', desc: '까만·하얀 고리무늬 꼬리를 깃발처럼 높이 들고 다녀요. 마다가스카르에서 온 친구예요.', tags: ['tail', 'endangered'] },
+  hyrax:     { name: '바위너구리', emoji: '🐹', spot: 'tropical', desc: '토끼만 한 몸집이지만, 놀랍게도 코끼리와 먼 친척이래요!' },
+  molerat:   { name: '벌거숭이두더지쥐', emoji: '🐀', spot: 'tropical', desc: '털이 거의 없는 땅속 친구예요. 개미처럼 여왕을 중심으로 무리 지어 살아요.' },
+  treeporc:  { name: '트리포큐파인', emoji: '🦔', spot: 'tropical', desc: '나무 위에서 사는 호저예요. 꼬리로 나뭇가지를 감고 매달릴 수 있어요.', tags: ['tail'] },
+  /* 열대동물관 — 파충류 */
   beardie:   { name: '턱수염도마뱀', emoji: '🦎', spot: 'tropical', desc: '턱밑 비늘이 수염처럼 보이는 순한 도마뱀이에요.' },
   python:    { name: '볼파이톤', emoji: '🐍', spot: 'tropical', desc: '놀라면 공처럼 몸을 동그랗게 마는 뱀이에요.' },
+  cornsnake: { name: '콘스네이크', emoji: '🐍', spot: 'tropical', desc: '옥수수밭 근처에서 자주 발견되어 이런 이름이 붙은 순한 뱀이에요.' },
+  bluetongue:{ name: '블루텅스킨크', emoji: '🦎', spot: 'tropical', desc: '놀라면 새파란 혀를 쏙 내밀어 "저리 가!" 하고 겁을 줘요.' },
+  leachianus:{ name: '리키에너스', emoji: '🦎', spot: 'tropical', desc: '세계에서 가장 큰 도마뱀붙이(게코)예요. 뉴칼레도니아 숲에서 왔어요.' },
   tortoise:  { name: '레오파드거북', emoji: '🐢', spot: 'tropical', desc: '표범 무늬 등껍질을 가진 육지거북이에요.' },
+  pancake:   { name: '팬케이크거북', emoji: '🐢', spot: 'tropical', desc: '팬케이크처럼 납작한 등껍질! 바위틈에 쏙 숨는 게 특기예요.' },
+  /* 바다동물원 */
   furseal:   { name: '남아메리카물개', emoji: '🦭', spot: 'sea', desc: '겉으로 보이는 귓바퀴가 있고, 앞지느러미로 힘차게 헤엄쳐요.', tags: ['swim'] },
   seal:      { name: '점박이물범', emoji: '🦭', spot: 'sea', desc: '우리나라 백령도 바다에도 사는 천연기념물(제331호)이에요.', tags: ['endangered', 'swim'] },
+  /* 원숭이마을 */
   macaque:   { name: '일본원숭이', emoji: '🐵', spot: 'monkeyvillage', desc: '추운 겨울 온천욕을 즐기는 것으로 유명한 원숭이예요.' },
   baboon:    { name: '아누비스개코원숭이', emoji: '🐒', spot: 'monkeyvillage', desc: '개처럼 긴 주둥이를 가진 원숭이. 무리 생활의 달인이에요.' },
-  gibbon:    { name: '긴팔원숭이(기번)', emoji: '🦧', spot: 'monkeyvillage', desc: '다리보다 긴 팔로 나뭇가지를 그네 타듯 이동해요.', tags: ['tail'] },
+  pigtail:   { name: '돼지꼬리원숭이', emoji: '🐵', spot: 'monkeyvillage', desc: '돼지처럼 짧고 꼬불한 꼬리 때문에 이런 이름이 붙었어요.' },
+  mantled:   { name: '망토원숭이', emoji: '🐒', spot: 'monkeyvillage', desc: '수컷 어깨의 은빛 털이 멋진 망토처럼 보여요.' },
+  ygibbon:   { name: '노랑뺨기번', emoji: '🦧', spot: 'monkeyvillage', desc: '수컷은 까만 몸에 노란 뺨, 암컷은 온몸이 금빛! 긴 팔로 나뭇가지를 그네 타듯 이동해요.', tags: ['endangered'] },
+  sgibbon:   { name: '은색기번', emoji: '🦧', spot: 'monkeyvillage', desc: '은빛 털을 가진 긴팔원숭이예요. 인도네시아 자바섬에서만 산답니다.', tags: ['endangered'] },
+  /* 물새장 */
   penguin:   { name: '자카스펭귄', emoji: '🐧', spot: 'birdcage', desc: '당나귀 울음소리를 닮은 소리를 내서 자카스(수탕나귀)라는 이름이 붙었어요.', tags: ['swim'] },
   crane:     { name: '두루미', emoji: '🦢', spot: 'birdcage', desc: '우리나라 천연기념물(제202호). 우아하게 춤추듯 걷는 큰 새예요.', tags: ['endangered'] },
   pelican:   { name: '분홍펠리컨', emoji: '🦩', spot: 'birdcage', desc: '부리 아래 큰 주머니에 물고기를 담아요.' },
+  heron:     { name: '해오라기', emoji: '🐦', spot: 'birdcage', desc: '해 질 무렵부터 활동하는 밤의 사냥꾼! 물가에서 꼼짝 않고 물고기를 기다려요.' },
+  stork:     { name: '홍부리황새', emoji: '🕊️', spot: 'birdcage', desc: '붉은 부리와 다리가 멋진 큰 새예요. 부리를 부딪쳐 딱딱 소리로 인사해요.' },
+  ibis:      { name: '흑따오기', emoji: '🐦‍⬛', spot: 'birdcage', desc: '아래로 굽은 긴 부리로 진흙 속 먹이를 찾아내요.' },
 };
 
 /* kind: 'animal' | 'dwell'
-   lm: 기존 랜드마크 id(좌표 재사용). lat/lon: 신규 스팟 근사 좌표 — ⚠️ 현장 방문 시 보정 필요 */
+   lm: 기존 랜드마크 id(좌표 재사용). lat/lon: OSM 실측 건물 중심 좌표 (원숭이마을 way 629007077, 물새장 way 629022478) */
 export const SPOTS = [
   {
     id: 'predator', kind: 'animal', name: '맹수마을', emoji: '🦁', lm: 'predator',
-    animals: ['lion', 'tiger', 'jaguar', 'puma', 'elephant'],
+    animals: ['lion', 'tiger', 'jaguar', 'puma', 'elephant', 'bear', 'hyena', 'jackal', 'lynx', 'fox'],
     quizzes: {
       easy: [
         { q: '사자 무리에서 사냥을 주로 하는 건 누구일까요?', a: ['암사자들', '수사자', '아기 사자'], correct: 0,
@@ -58,7 +94,7 @@ export const SPOTS = [
   },
   {
     id: 'herbivore', kind: 'animal', name: '초식동물마을', emoji: '🦓', lm: 'herbivore',
-    animals: ['zebra', 'kangaroo', 'alpaca'],
+    animals: ['zebra', 'kangaroo', 'alpaca', 'guanaco', 'donkey', 'minihorse'],
     quizzes: {
       easy: [
         { q: '얼룩말 친구들의 줄무늬는 서로 똑같을까요?', a: ['똑같다', '저마다 다르다'], correct: 1,
@@ -80,7 +116,7 @@ export const SPOTS = [
   },
   {
     id: 'minivillage', kind: 'animal', name: '꼬마동물마을', emoji: '🦦', lm: 'minivillage',
-    animals: ['meerkat', 'otter', 'porcupine'],
+    animals: ['meerkat', 'otter', 'euotter', 'porcupine', 'rabbit'],
     quizzes: {
       easy: [
         { q: '미어캣이 두 발로 서서 하는 일은 무엇일까요?', a: ['망보기', '춤추기', '키 재기'], correct: 0,
@@ -102,7 +138,7 @@ export const SPOTS = [
   },
   {
     id: 'tropical', kind: 'animal', name: '열대동물관', emoji: '🦎', lm: 'tropical',
-    animals: ['squirrelmonkey', 'beardie', 'python', 'tortoise'],
+    animals: ['squirrelmonkey', 'marmoset', 'lemur', 'hyrax', 'molerat', 'treeporc', 'beardie', 'python', 'cornsnake', 'bluetongue', 'leachianus', 'tortoise', 'pancake'],
     quizzes: {
       easy: [
         { q: '거북이는 어떤 동물일까요?', a: ['파충류', '포유류', '어류'], correct: 0,
@@ -146,8 +182,8 @@ export const SPOTS = [
   },
   {
     id: 'monkeyvillage', kind: 'animal', name: '원숭이마을', emoji: '🐵',
-    lat: 37.54905, lon: 127.08260, /* ⚠️ 근사 좌표 — 현장 보정 필요 */
-    animals: ['macaque', 'baboon', 'gibbon'],
+    lat: 37.54901, lon: 127.08220,
+    animals: ['macaque', 'baboon', 'pigtail', 'mantled', 'ygibbon', 'sgibbon'],
     quizzes: {
       easy: [
         { q: '긴팔원숭이는 팔과 다리 중 어느 쪽이 더 길까요?', a: ['팔', '다리', '똑같다'], correct: 0,
@@ -169,8 +205,8 @@ export const SPOTS = [
   },
   {
     id: 'birdcage', kind: 'animal', name: '물새장', emoji: '🐧',
-    lat: 37.54760, lon: 127.08240, /* ⚠️ 근사 좌표 — 현장 보정 필요 */
-    animals: ['penguin', 'crane', 'pelican'],
+    lat: 37.54938, lon: 127.08228,
+    animals: ['penguin', 'crane', 'pelican', 'heron', 'stork', 'ibis'],
     quizzes: {
       easy: [
         { q: '펭귄은 하늘을 날 수 있을까요?', a: ['날 수 있다', '날 수 없다'], correct: 1,
@@ -216,13 +252,13 @@ export const DISCOVERIES = [
     targets: ['tiger', 'zebra'], need: 2 },
   { id: 'endangered', title: '지켜주고 싶은 친구 찾기', emoji: '🌏',
     desc: '지구에서 점점 사라져 가는 멸종위기 친구들을 찾아 사진으로 남겨봐요.',
-    targets: ['otter', 'crane', 'elephant', 'seal'], need: 2 },
+    targets: ['otter', 'euotter', 'crane', 'elephant', 'seal', 'bear', 'lemur'], need: 2 },
   { id: 'swimmers', title: '헤엄 선수 찾기', emoji: '💦',
     desc: '물속을 나는 듯 헤엄치는 선수들을 찾아봐요!',
-    targets: ['furseal', 'seal', 'otter', 'penguin'], need: 2 },
+    targets: ['furseal', 'seal', 'otter', 'euotter', 'penguin'], need: 2 },
   { id: 'tails', title: '멋진 꼬리 찾기', emoji: '✨',
     desc: '꼬리가 유난히 멋진 친구들을 찾아 사진으로 남겨봐요.',
-    targets: ['jaguar', 'squirrelmonkey', 'gibbon'], need: 2 },
+    targets: ['jaguar', 'squirrelmonkey', 'lemur', 'treeporc'], need: 2 },
 ];
 
 export const MEDALS = [

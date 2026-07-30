@@ -18,7 +18,7 @@ export function markSeen(id) {
   updateHud();
 }
 
-export function openSheet(lm) {
+export function openSheet(lm, gate) {
   $('shEmo').textContent = lm.emoji;
   $('shName').textContent = lm.name;
   const z = $('shZone');
@@ -31,6 +31,9 @@ export function openSheet(lm) {
   enter.style.display = spot && spot.kind === 'animal' ? 'block' : 'none';
   if (spot) enter.dataset.spot = spot.id;
   if (spot && spot.kind === 'animal') {
+    const g = gate ? gate(spot) : { ok: true };
+    enter.disabled = !g.ok;
+    enter.textContent = g.ok ? '🚪 마을 안 둘러보기' : '🔒 마을 가까이 가면 열려요';
     soon.innerHTML = `이곳 친구들: ${spot.animals.map((a) => `${ANIMALS[a].emoji} ${ANIMALS[a].name}`).join(' · ')}<br>가까이 가면 탐험이 열릴지도 몰라요!`;
   } else if (spot) {
     soon.textContent = '🍃 잠시 쉬어 가기 좋은 곳이에요. 가까이 가면 쉬어가기 탐험이 열릴 수도!';

@@ -199,7 +199,7 @@ function exitDemo() {
 camCtl.onTap = (cx, cy) => {
   if (interior.active) { interior.handleTap(cx, cy); return; }
   const hit = camCtl.raycastSprites(cx, cy, markers.sprites);
-  if (hit) { openSheet(hit.userData.lm); return; }
+  if (hit) { openSheet(hit.userData.lm, entryGate); return; }
   if (demo && !walking) {
     const p = camCtl.groundPoint(cx, cy);
     if (p && inPark(p.x, p.z, 20)) {
@@ -317,8 +317,23 @@ const interior = createInterior({
   onAnimalTap: (animalId, spot) => qui.openAnimal(animalId, spot),
 });
 
+/* 마을 입장 조건: 데모(탭 이동·산책)에선 자유, 실사용은 지오펜스 근접 시에만 */
+function entryGate(spot) {
+  if (!spot || spot.kind !== 'animal') return { ok: false, msg: '' };
+  if (demo || walking) return { ok: true, msg: '' };
+  if (meG.visible && quests.near && quests.near.id === spot.id) return { ok: true, msg: '' };
+  return {
+    ok: false,
+    msg: meG.visible
+      ? '마을 가까이 가면 들어갈 수 있어요'
+      : '📍 위치를 켜고 마을 가까이 가면 들어갈 수 있어요',
+  };
+}
+
 function enterZone(spot) {
   if (!spot || spot.kind !== 'animal') return;
+  const gate = entryGate(spot);
+  if (!gate.ok) { toast(gate.msg || '지금은 들어갈 수 없어요'); return; }
   if (walking) stopWalk();
   $('sheetWrap').classList.remove('open');
   qui.closeSheet();
