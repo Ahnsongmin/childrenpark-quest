@@ -317,9 +317,12 @@ const interior = createInterior({
   onAnimalTap: (animalId, spot) => qui.openAnimal(animalId, spot),
 });
 
-/* 마을 입장 조건: 데모(탭 이동·산책)에선 자유, 실사용은 지오펜스 근접 시에만 */
+/* 마을 입장 조건: 데모(탭 이동·산책)에선 자유, 실사용은 지오펜스 근접 시에만
+   OPEN_ENTRY: 공모전 제출 전 확인·심사용 전면 개방 — 제출 후 false로 되돌릴 것 */
+const OPEN_ENTRY = true;
 function entryGate(spot) {
   if (!spot || spot.kind !== 'animal') return { ok: false, msg: '' };
+  if (OPEN_ENTRY) return { ok: true, msg: '' };
   if (demo || walking) return { ok: true, msg: '' };
   if (meG.visible && quests.near && quests.near.id === spot.id) return { ok: true, msg: '' };
   return {
