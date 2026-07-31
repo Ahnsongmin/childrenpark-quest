@@ -340,10 +340,9 @@ function enterZone(spot) {
   if (walking) stopWalk();
   $('sheetWrap').classList.remove('open');
   qui.closeSheet();
-  quests.markMet(spot.id); // 마을 입장 = 동물들과 만남
   $('frame').classList.add('inZone');
   $('zoneName').textContent = `${spot.emoji} ${spot.name}`;
-  $('hud').innerHTML = '<span style="font-size:22px">👣</span><div>동물 친구를 <b>톡 눌러 인사</b>해 봐요!<br>바닥을 누르면 그곳으로 걸어가요</div>';
+  $('hud').innerHTML = '<span style="font-size:22px">👣</span><div>동물 친구를 <b>톡 눌러 인사</b>해 봐요!<br>📷 사진·✏️ 한 줄·🎓 탐험을 하면 <b>📔 발견일지</b>에 담겨요</div>';
   interior.enter(spot);
   qui.refresh();
   toast(`${spot.emoji} ${spot.name}에 들어왔어요!`);

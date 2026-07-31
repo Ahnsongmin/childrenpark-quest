@@ -101,16 +101,17 @@ export function initQuests({ onNear } = {}) {
       return v.assign.spots.includes(spotId) || v.assign.dwell === spotId;
     },
 
-    markMet(spotId) { // 우리 안 동물들을 발견일지에 등재 (지오펜스·마을 입장 공용)
-      const s = spotById.get(spotId);
-      if (!s || s.kind !== 'animal') return;
+    /* 발견일지 등재는 그 동물과 직접 활동했을 때만 (사진·한 줄·퀴즈·관찰) —
+       마을 입장이나 지오펜스 접근만으로는 등재하지 않음 (재방문 유도) */
+    meet(animalIds) {
       const v = ensureVisit();
-      let changed = false;
-      for (const a of s.animals) {
-        if (!v.met.includes(a)) { v.met.push(a); changed = true; }
-        if (!log.dex[a]) { log.dex[a] = { first: v.date, photo: null }; changed = true; }
+      const fresh = [];
+      for (const a of animalIds || []) {
+        if (!v.met.includes(a)) v.met.push(a);
+        if (!log.dex[a]) { log.dex[a] = { first: v.date, photo: null }; fresh.push(a); }
       }
-      if (changed) save();
+      if (fresh.length || animalIds?.length) save();
+      return fresh; // 이번에 처음 등재된 동물들
     },
 
     onPosition(x, z) {
@@ -122,7 +123,6 @@ export function initQuests({ onNear } = {}) {
       }
       if ((best && best.id) !== (near && near.id)) {
         near = best;
-        if (best && best.kind === 'animal') api.markMet(best.id); // 우리 진입 = 동물들과 만남
         const fresh = best && api.isAssigned(best.id) && !announced.has(best.id) && !api.spotDone(best.id);
         if (fresh) announced.add(best.id);
         if (onNear) onNear(best, fresh);
@@ -138,8 +138,8 @@ export function initQuests({ onNear } = {}) {
       if (s.kind === 'animal') {
         const quiz = s.quizzes[band()][pickIdx(spotId, s.quizzes[band()].length)];
         out.push({ type: 'quiz', quiz, done: v.done.some((d) => d.spot === spotId && d.type === 'quiz') });
-        const prompt = s.observe[pickIdx(spotId + 'o', s.observe.length)];
-        out.push({ type: 'observe', prompt, done: v.done.some((d) => d.spot === spotId && d.type === 'observe') });
+        const ob = s.observe[pickIdx(spotId + 'o', s.observe.length)];
+        out.push({ type: 'observe', prompt: ob.text, done: v.done.some((d) => d.spot === spotId && d.type === 'observe') });
       } else {
         out.push({ type: 'dwell', ...s.dwell, done: v.done.some((d) => d.spot === spotId && d.type === 'dwell') });
       }
@@ -156,19 +156,24 @@ export function initQuests({ onNear } = {}) {
       const correct = choice === quiz.correct;
       ensureVisit().done.push({ spot: spotId, type: 'quiz', q: quiz.q, choice, correct, explain: quiz.explain, ts: Date.now() });
       save();
-      return { correct, explain: quiz.explain, answer: quiz.a[quiz.correct] };
+      const fresh = api.meet(quiz.animals); // 틀려도 해설로 배웠으니 '만남'으로 인정
+      return { correct, explain: quiz.explain, answer: quiz.a[quiz.correct], newAnimals: fresh };
     },
     saveObserve(spotId, text, photo) {
+      const s = spotById.get(spotId);
+      const ob = s.observe[pickIdx(spotId + 'o', s.observe.length)];
       ensureVisit().done.push({ spot: spotId, type: 'observe', text, photo: photo || null, ts: Date.now() });
       save();
+      return api.meet(ob.animals);
     },
     completeDwell(spotId, text) {
       ensureVisit().done.push({ spot: spotId, type: 'dwell', text, ts: Date.now() });
       save();
     },
-    saveFreeNote(spotId, text, photo) { // 탐험과 무관한 자유 기록(한줄 남기기)
+    saveFreeNote(spotId, text, photo, animalId) { // 자유 기록(한줄) — 동물에게 남기면 발견일지 등재
       ensureVisit().done.push({ spot: spotId, type: 'note', text, photo: photo || null, ts: Date.now() });
       save();
+      return animalId ? api.meet([animalId]) : [];
     },
 
     discovery() {
@@ -179,9 +184,8 @@ export function initQuests({ onNear } = {}) {
     addDiscoveryPhoto(animalId, photo) {
       const v = ensureVisit();
       const { def } = api.discovery();
-      if (!log.dex[animalId]) log.dex[animalId] = { first: v.date, photo: null };
+      const fresh = api.meet([animalId]);
       if (photo && !log.dex[animalId].photo) log.dex[animalId].photo = photo;
-      if (!v.met.includes(animalId)) v.met.push(animalId);
       let hit = false;
       if (def.targets.includes(animalId) && !v.disc.includes(animalId)) {
         v.disc.push(animalId);
@@ -194,7 +198,7 @@ export function initQuests({ onNear } = {}) {
         v.done.push({ spot: null, type: 'photo', animal: animalId, photo, ts: Date.now() });
       }
       save();
-      return { hit, def, got: v.disc, done: v.discDone };
+      return { hit, def, got: v.disc, done: v.discDone, newAnimals: fresh };
     },
 
     /* 오늘의 탐험 진행: 배정 스팟 4곳 + 발견 1 */
