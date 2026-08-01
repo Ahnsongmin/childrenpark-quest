@@ -39,6 +39,10 @@ function shuffled(arr, rng) {
 
 export function initQuests({ onNear } = {}) {
   const profile = loadJSON(P_KEY, { age: null });
+  if (!profile.seed) { // 기기별 고유 시드 — 퀴즈 담당 동물이 사람마다 다르게 뽑히도록
+    profile.seed = Math.random().toString(36).slice(2, 10);
+    saveJSON(P_KEY, profile);
+  }
   const log = loadJSON(L_KEY, { visits: [], dex: {} });
   const save = () => saveJSON(L_KEY, log);
 
@@ -156,16 +160,20 @@ export function initQuests({ onNear } = {}) {
       const list = fit.length ? fit : pool;
       return list[pickIdx('a:' + animalId, list.length)];
     },
-    /* 오늘 이 마을에서 퀴즈를 준비한 동물 1~2종 — 날짜 시드로 매일 바뀜.
-       아직 발견일지에 없는 동물 우선(재방문 유도). 그날 첫 계산 시점에 고정 저장. */
+    /* 오늘 이 마을에서 퀴즈를 준비한 동물 1~2종 — 날짜+기기 시드로 매일·사람마다 다르게.
+       이미 퀴즈를 푼 동물은 발견일지 48종을 다 채우기 전까지 다시 뽑히지 않음.
+       남은 후보 중엔 아직 발견일지에 없는 동물 우선(재방문 유도). 그날 첫 계산 시점에 고정. */
     quizAnimalsFor(spotId) {
       const v = ensureVisit();
       if (!v.quizPicks) v.quizPicks = {};
       if (!v.quizPicks[spotId]) {
         const s = spotById.get(spotId);
-        const rng = mulberry32(strSeed(`${todayKey()}|quiz|${spotId}`));
-        const n = Math.min(s.animals.length, 1 + Math.floor(rng() * 2)); // 1~2종
-        v.quizPicks[spotId] = shuffled(s.animals, rng)
+        const rng = mulberry32(strSeed(`${todayKey()}|quiz|${spotId}|${profile.seed}`));
+        const quizzed = new Set(allDone().filter((d) => d.type === 'quiz' && d.animal).map((d) => d.animal));
+        const dexComplete = Object.keys(ANIMALS).every((id) => log.dex[id]);
+        const pool = dexComplete ? s.animals : s.animals.filter((a) => !quizzed.has(a));
+        const n = Math.min(pool.length, 1 + Math.floor(rng() * 2)); // 1~2종 (남은 후보 없으면 0)
+        v.quizPicks[spotId] = shuffled(pool, rng)
           .sort((a, b) => (log.dex[a] ? 1 : 0) - (log.dex[b] ? 1 : 0))
           .slice(0, n);
         save();
