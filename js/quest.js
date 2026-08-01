@@ -105,14 +105,14 @@ export function initQuests({ onNear } = {}) {
       return v.assign.spots.includes(spotId) || v.assign.dwell === spotId;
     },
 
-    /* 발견일지 등재는 그 동물과 직접 활동했을 때만 (사진·한 줄·퀴즈·관찰) —
-       마을 입장이나 지오펜스 접근만으로는 등재하지 않음 (재방문 유도) */
-    meet(animalIds) {
+    /* 만남(v.met): 사진·한 줄·퀴즈·관찰 어떤 활동이든 기록 — 오늘의 리캡에 나옴.
+       발견일지(log.dex) 등재는 🎓 퀴즈를 풀었을 때만 (dex=true, 오답도 인정) */
+    meet(animalIds, dex = false) {
       const v = ensureVisit();
       const fresh = [];
       for (const a of animalIds || []) {
         if (!v.met.includes(a)) v.met.push(a);
-        if (!log.dex[a]) { log.dex[a] = { first: v.date, photo: null }; fresh.push(a); }
+        if (dex && !log.dex[a]) { log.dex[a] = { first: v.date, photo: null }; fresh.push(a); }
       }
       if (fresh.length || animalIds?.length) save();
       return fresh; // 이번에 처음 등재된 동물들
@@ -193,7 +193,10 @@ export function initQuests({ onNear } = {}) {
       const correct = choice === quiz.correct;
       ensureVisit().done.push({ spot: ANIMALS[animalId].spot, animal: animalId, type: 'quiz', q: quiz.q, choice, correct, explain: quiz.explain, ts: Date.now() });
       save();
-      const fresh = api.meet([animalId]); // 틀려도 해설로 배웠으니 '만남'으로 인정
+      const fresh = api.meet([animalId], true); // 틀려도 해설로 배웠으니 발견일지 등재
+      // 오늘 이 동물 사진을 먼저 찍어뒀다면 발견일지에 붙여준다
+      const ph = [...ensureVisit().done].reverse().find((d) => d.type === 'photo' && d.animal === animalId && d.photo);
+      if (ph && !log.dex[animalId].photo) { log.dex[animalId].photo = ph.photo; save(); }
       return { correct, explain: quiz.explain, answer: quiz.a[quiz.correct], newAnimals: fresh };
     },
     saveObserve(spotId, text, photo) {
@@ -201,16 +204,16 @@ export function initQuests({ onNear } = {}) {
       const ob = s.observe[pickIdx(spotId + 'o', s.observe.length)];
       ensureVisit().done.push({ spot: spotId, type: 'observe', text, photo: photo || null, animal: ob.animals?.[0] || null, ts: Date.now() });
       save();
-      return api.meet(ob.animals);
+      api.meet(ob.animals); // 만남만 기록 — 발견일지 등재는 퀴즈로만
     },
     completeDwell(spotId, text) {
       ensureVisit().done.push({ spot: spotId, type: 'dwell', text, ts: Date.now() });
       save();
     },
-    saveFreeNote(spotId, text, photo, animalId) { // 자유 기록(한줄) — 동물에게 남기면 발견일지 등재
+    saveFreeNote(spotId, text, photo, animalId) { // 자유 기록(한줄) — 만남만 기록, 발견일지 등재는 퀴즈로만
       ensureVisit().done.push({ spot: spotId, type: 'note', text, photo: photo || null, animal: animalId || null, ts: Date.now() });
       save();
-      return animalId ? api.meet([animalId]) : [];
+      if (animalId) api.meet([animalId]);
     },
 
     discovery() {
@@ -221,8 +224,8 @@ export function initQuests({ onNear } = {}) {
     addDiscoveryPhoto(animalId, photo) {
       const v = ensureVisit();
       const { def } = api.discovery();
-      const fresh = api.meet([animalId]);
-      if (photo && !log.dex[animalId].photo) log.dex[animalId].photo = photo;
+      api.meet([animalId]); // 만남만 기록 — 발견일지 등재는 퀴즈로만
+      if (photo && log.dex[animalId] && !log.dex[animalId].photo) log.dex[animalId].photo = photo;
       let hit = false;
       if (def.targets.includes(animalId) && !v.disc.includes(animalId)) {
         v.disc.push(animalId);
@@ -235,7 +238,7 @@ export function initQuests({ onNear } = {}) {
         v.done.push({ spot: null, type: 'photo', animal: animalId, photo, ts: Date.now() });
       }
       save();
-      return { hit, def, got: v.disc, done: v.discDone, newAnimals: fresh };
+      return { hit, def, got: v.disc, done: v.discDone };
     },
 
     /* 오늘의 탐험 진행: 배정 스팟 4곳 + 발견 1 */

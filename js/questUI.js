@@ -128,8 +128,8 @@ export function initQuestUI(quests, opts = {}) {
       $('obsSave').addEventListener('click', () => {
         const t = $('obsText').value.trim();
         if (!t && !photoId) { toast('관찰한 내용을 적거나 사진을 붙여봐요'); return; }
-        const fresh = quests.saveObserve(spot.id, t, photoId);
-        toast(fresh.length ? `🔍 기록 완료! 📔 ${aNames(fresh)} 발견일지에 담겼어요!` : '🔍 관찰노트에 기록했어요!');
+        quests.saveObserve(spot.id, t, photoId);
+        toast('🔍 관찰노트에 기록했어요! 오늘의 리캡에 담겨요');
         openQuestSheet(spot);
       });
     }
@@ -179,7 +179,7 @@ export function initQuestUI(quests, opts = {}) {
     if (r.hit) {
       html += `<div class="qexplain" style="display:block">✨ <b>${r.def.emoji} ${esc(r.def.title)}</b> ${r.got.length}/${r.def.need} 발견!${r.done ? '<br>🎉 오늘의 발견 탐험 완성!' : ''}</div>`;
     }
-    html += '<p class="qsub">📔 발견일지에 사진과 함께 저장됐어요.</p>';
+    html += '<p class="qsub">📷 사진을 남겼어요 — 오늘의 리캡에 나와요! 📔 발견일지는 🎓 퀴즈를 풀면 채워져요.</p>';
     qSheet.innerHTML = html;
     qWrap.classList.add('open');
     renderHud();
@@ -189,7 +189,7 @@ export function initQuestUI(quests, opts = {}) {
   /* 사진 찍고 어떤 동물인지 고르기 */
   function pickAnimalPhoto(animalIds) {
     qSheet.innerHTML = `<div class="grip"></div><h2 style="font-size:17px;color:#223">📷 누구를 찍을까요?</h2>
-      <p class="qsub">찍고 나면 발견일지에 저장돼요. 사진은 휴대폰 밖으로 나가지 않아요.</p>
+      <p class="qsub">찍은 사진은 오늘의 리캡에 나와요. 사진은 휴대폰 밖으로 나가지 않아요.</p>
       <div class="chips">${animalIds.map((a) => `<button class="chip pick" data-a="${a}">${ANIMALS[a].emoji} ${esc(ANIMALS[a].name)}</button>`).join('')}</div>`;
     qSheet.querySelectorAll('.pick').forEach((b) => b.addEventListener('click', () => {
       const aid = b.dataset.a;
@@ -205,7 +205,7 @@ export function initQuestUI(quests, opts = {}) {
     const hasQuiz = quests.canQuiz(animalId);
     qSheet.innerHTML = `<div class="grip"></div><h2 style="font-size:18px;color:#223">${a.emoji} ${esc(a.name)}</h2>
       <p style="margin-top:8px;font-size:14px;line-height:1.6;color:#445">${esc(a.desc)}</p>
-      <p class="qsub">${hasQuiz ? '🎓 퀴즈·' : ''}📷 사진·✏️ 한 줄 — 하나만 해도 이 친구가 📔 발견일지에 담겨요.</p>
+      <p class="qsub">${hasQuiz ? '🎓 퀴즈를 풀면 📔 발견일지에 담겨요! ' : ''}📷 사진·✏️ 한 줄은 오늘의 리캡에 나와요.</p>
       ${hasQuiz ? `<div class="qrow"><button class="qbtn" id="anQuiz">🎓 ${esc(a.name)}의 퀴즈 풀기</button></div>` : ''}
       <div class="qrow"><button class="qbtn ghost" id="anPhoto">📷 사진 찍기</button><button class="qbtn ghost" id="anNote">✏️ 한 줄 남기기</button></div>
       ${hasQuest ? '<div class="qrow"><button class="qbtn ghost" id="anQuest">💡 이 마을의 탐험 열기</button></div>' : ''}
@@ -217,8 +217,8 @@ export function initQuestUI(quests, opts = {}) {
     $('anSave').addEventListener('click', () => {
       const t = $('anText').value.trim();
       if (!t) return;
-      const fresh = quests.saveFreeNote(spot ? spot.id : null, `${a.emoji} ${a.name}: ${t}`, null, animalId);
-      toast(fresh.length ? `✏️ 기록 완료! 📔 ${aNames(fresh)} 발견일지에 담겼어요!` : '✏️ 기록했어요!');
+      quests.saveFreeNote(spot ? spot.id : null, `${a.emoji} ${a.name}: ${t}`, null, animalId);
+      toast('✏️ 기록했어요! 오늘의 리캡에 담겨요');
       closeSheet();
     });
     if (hasQuest) $('anQuest').addEventListener('click', () => openQuestSheet(spot));
@@ -309,7 +309,7 @@ export function initQuestUI(quests, opts = {}) {
       <div class="dexgrid">${list.map((a) => a.met
         ? `<div class="dexcell" data-a="${a.id}"><div class="dexemo">${a.emoji}</div><div class="dexname">${esc(a.name)}</div><div class="dexdate">${a.met.first.slice(5)}</div></div>`
         : `<div class="dexcell locked"><div class="dexemo">❔</div><div class="dexname">???</div></div>`).join('')}</div>
-      <p class="qsub">매일 마을마다 한두 친구가 🎓 퀴즈를 준비해요! 퀴즈·📷 사진·✏️ 한 줄을 하면 일지에 담겨요. ❔ 친구는 다음 방문에 만나러 가요!</p>`;
+      <p class="qsub">매일 마을마다 한두 친구가 🎓 퀴즈를 준비해요! 퀴즈를 풀면 일지에 담겨요(틀려도 OK). 📷 사진·✏️ 한 줄은 오늘의 리캡에 나와요. ❔ 친구는 다음 방문에 만나러 가요!</p>`;
     for (const cell of body.querySelectorAll('.dexcell[data-a]')) {
       const a = list.find((x) => x.id === cell.dataset.a);
       if (a.met && a.met.photo) {
