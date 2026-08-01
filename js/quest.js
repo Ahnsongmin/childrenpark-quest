@@ -199,7 +199,7 @@ export function initQuests({ onNear } = {}) {
     saveObserve(spotId, text, photo) {
       const s = spotById.get(spotId);
       const ob = s.observe[pickIdx(spotId + 'o', s.observe.length)];
-      ensureVisit().done.push({ spot: spotId, type: 'observe', text, photo: photo || null, ts: Date.now() });
+      ensureVisit().done.push({ spot: spotId, type: 'observe', text, photo: photo || null, animal: ob.animals?.[0] || null, ts: Date.now() });
       save();
       return api.meet(ob.animals);
     },
@@ -208,7 +208,7 @@ export function initQuests({ onNear } = {}) {
       save();
     },
     saveFreeNote(spotId, text, photo, animalId) { // 자유 기록(한줄) — 동물에게 남기면 발견일지 등재
-      ensureVisit().done.push({ spot: spotId, type: 'note', text, photo: photo || null, ts: Date.now() });
+      ensureVisit().done.push({ spot: spotId, type: 'note', text, photo: photo || null, animal: animalId || null, ts: Date.now() });
       save();
       return animalId ? api.meet([animalId]) : [];
     },

@@ -2,6 +2,7 @@
 import { ANIMALS } from './quests-data.js';
 import { savePhoto, getPhoto, fileToDataUrl } from './store.js';
 import { toast, seen } from './ui.js';
+import { openStory } from './story.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -350,12 +351,15 @@ export function initQuestUI(quests, opts = {}) {
       ${r.quizzes.length ? `<div class="rcard"><b>🎓 오늘 배운 것</b>${r.quizzes.map((q) => `<div class="rquiz">${q.correct ? '⭕' : '🌱'} ${esc(q.q)}<br><span class="qsub">${esc(q.explain)}</span></div>`).join('')}</div>` : ''}
       ${r.notes.length ? `<div class="rcard"><b>📝 오늘의 기록</b>${r.notes.map((n) => `<div class="rquiz">${esc(n.text || '(사진)')}</div>`).join('')}</div>` : ''}
       <div class="rphotos"></div>
+      <button class="qbtn" id="storyBtn" ${r.metCount ? '' : 'disabled'}>🎬 오늘 탐험 끝! 스토리 보기</button>
+      ${r.metCount ? '' : '<p class="qsub">동물 친구를 만나면 스토리가 열려요!</p>'}
       <button class="qbtn" id="shareRecap">📤 오늘의 리캡 공유하기</button>`;
     const ph = body.querySelector('.rphotos');
     for (const id of r.photos.slice(0, 8)) {
       const url = await getPhoto(id);
       if (url) ph.innerHTML += `<img src="${url}" class="qthumb">`;
     }
+    $('storyBtn').addEventListener('click', () => { if (r.metCount) openStory(quests); });
     $('shareRecap').addEventListener('click', async () => {
       const text = `🌳 공원 원정대 ${r.visit.n}번째 탐험!\n오늘 만난 동물 ${r.metCount}종, 발견일지 ${r.dexTotal}종 달성\n나의 모험 유형: ${r.type.emoji} ${r.type.name}\n${location.origin}`;
       try {

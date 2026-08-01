@@ -286,6 +286,30 @@
   .rphotos { display: flex; flex-wrap: wrap; margin-top: 8px; }
   #recBody .qbtn { width: 100%; margin-top: 12px; }
 
+  /* 오늘의 리캡 스토리 (인스타 스토리형) */
+  #storyWrap {
+    position: absolute; inset: 0; z-index: 20; display: none;
+    background: #111; flex-direction: column; align-items: center; justify-content: center;
+  }
+  #storyWrap.open { display: flex; }
+  #storyBars { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 3; display: flex; gap: 4px; }
+  #storyBars i { flex: 1; height: 4px; border-radius: 2px; background: #ffffff55; overflow: hidden; }
+  #storyBars i b { display: block; height: 100%; width: 0; background: #fff; transition: width .25s; }
+  #storyBars i.done b { width: 100%; }
+  #storyClose {
+    position: absolute; top: 24px; right: 12px; z-index: 4; border: 0;
+    background: #0006; color: #fff; font-size: 16px; width: 36px; height: 36px;
+    border-radius: 50%; cursor: pointer;
+  }
+  #storyCv { height: 100%; max-height: 100%; max-width: 100%; aspect-ratio: 9 / 16; object-fit: contain; }
+  #storyHit { position: absolute; inset: 0; z-index: 2; touch-action: none; cursor: pointer; }
+  #storyShare {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 3;
+    border: 0; border-radius: 22px; background: #ffffffee; color: #2e6b34;
+    font-size: 14px; font-weight: 800; padding: 12px 22px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,.4);
+  }
+
   /* 마을 안(내부 지도) 모드 */
   #zoneBar {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 6;
@@ -404,6 +428,14 @@
       </div>
       <div id="recBody"></div>
     </div>
+  </div>
+
+  <div id="storyWrap">
+    <div id="storyBars"></div>
+    <button id="storyClose" aria-label="닫기">✕</button>
+    <canvas id="storyCv"></canvas>
+    <div id="storyHit"></div>
+    <button id="storyShare">📤 이 장면 공유하기</button>
   </div>
 
   <div id="zoneBar"><span id="zoneName"></span><button id="exitZone">🚪 나가기</button></div>
