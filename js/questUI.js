@@ -201,10 +201,10 @@ export function initQuestUI(quests, opts = {}) {
   function openAnimal(animalId, spot) {
     const a = ANIMALS[animalId];
     const hasQuest = spot && quests.isAssigned(spot.id) && !quests.spotDone(spot.id);
-    const hasQuiz = quests.quizFor(animalId) && !quests.animalQuizDone(animalId);
+    const hasQuiz = quests.canQuiz(animalId);
     qSheet.innerHTML = `<div class="grip"></div><h2 style="font-size:18px;color:#223">${a.emoji} ${esc(a.name)}</h2>
       <p style="margin-top:8px;font-size:14px;line-height:1.6;color:#445">${esc(a.desc)}</p>
-      <p class="qsub">🎓 퀴즈·📷 사진·✏️ 한 줄 — 하나만 해도 이 친구가 📔 발견일지에 담겨요.</p>
+      <p class="qsub">${hasQuiz ? '🎓 퀴즈·' : ''}📷 사진·✏️ 한 줄 — 하나만 해도 이 친구가 📔 발견일지에 담겨요.</p>
       ${hasQuiz ? `<div class="qrow"><button class="qbtn" id="anQuiz">🎓 ${esc(a.name)}의 퀴즈 풀기</button></div>` : ''}
       <div class="qrow"><button class="qbtn ghost" id="anPhoto">📷 사진 찍기</button><button class="qbtn ghost" id="anNote">✏️ 한 줄 남기기</button></div>
       ${hasQuest ? '<div class="qrow"><button class="qbtn ghost" id="anQuest">💡 이 마을의 탐험 열기</button></div>' : ''}
@@ -228,7 +228,7 @@ export function initQuestUI(quests, opts = {}) {
   function openAnimalQuiz(animalId) {
     const a = ANIMALS[animalId];
     const quiz = quests.quizFor(animalId);
-    if (!quiz || quests.animalQuizDone(animalId)) { openAnimal(animalId, quests.spotById(a.spot)); return; }
+    if (!quiz || !quests.canQuiz(animalId)) { openAnimal(animalId, quests.spotById(a.spot)); return; }
     qSheet.innerHTML = `<div class="grip"></div><h2 style="font-size:18px;color:#223">🎓 ${a.emoji} ${esc(a.name)}의 퀴즈!</h2>
       <div class="qcard" id="qQuiz">
         <p class="qq">${esc(quiz.q)}</p>
@@ -252,7 +252,7 @@ export function initQuestUI(quests, opts = {}) {
   /* 마을 안에서 동물 우리 가까이 갔을 때 — 그 동물이 퀴즈를 냄.
      false 반환 = 지금은 못 보여줌(다른 창 열림) → interior가 잠시 후 재시도 */
   function onAnimalNear(animalId) {
-    if (!quests.quizFor(animalId) || quests.animalQuizDone(animalId)) return true; // 오늘은 낼 퀴즈 없음
+    if (!quests.canQuiz(animalId)) return true; // 오늘 퀴즈 담당 동물이 아니거나 이미 풀었음
     if (qWrap.classList.contains('open') || recWrap.classList.contains('open')) return false;
     const a = ANIMALS[animalId];
     toast(`💡 ${a.emoji} ${a.name}가 퀴즈를 냈어요!`);
@@ -308,7 +308,7 @@ export function initQuestUI(quests, opts = {}) {
       <div class="dexgrid">${list.map((a) => a.met
         ? `<div class="dexcell" data-a="${a.id}"><div class="dexemo">${a.emoji}</div><div class="dexname">${esc(a.name)}</div><div class="dexdate">${a.met.first.slice(5)}</div></div>`
         : `<div class="dexcell locked"><div class="dexemo">❔</div><div class="dexname">???</div></div>`).join('')}</div>
-      <p class="qsub">동물 우리 가까이 가면 🎓 퀴즈가 튀어나와요! 퀴즈·📷 사진·✏️ 한 줄을 하면 일지에 담겨요. ❔ 친구는 다음 방문에 만나러 가요!</p>`;
+      <p class="qsub">매일 마을마다 한두 친구가 🎓 퀴즈를 준비해요! 퀴즈·📷 사진·✏️ 한 줄을 하면 일지에 담겨요. ❔ 친구는 다음 방문에 만나러 가요!</p>`;
     for (const cell of body.querySelectorAll('.dexcell[data-a]')) {
       const a = list.find((x) => x.id === cell.dataset.a);
       if (a.met && a.met.photo) {

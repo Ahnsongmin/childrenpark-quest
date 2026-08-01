@@ -156,6 +156,27 @@ export function initQuests({ onNear } = {}) {
       const list = fit.length ? fit : pool;
       return list[pickIdx('a:' + animalId, list.length)];
     },
+    /* 오늘 이 마을에서 퀴즈를 준비한 동물 1~2종 — 날짜 시드로 매일 바뀜.
+       아직 발견일지에 없는 동물 우선(재방문 유도). 그날 첫 계산 시점에 고정 저장. */
+    quizAnimalsFor(spotId) {
+      const v = ensureVisit();
+      if (!v.quizPicks) v.quizPicks = {};
+      if (!v.quizPicks[spotId]) {
+        const s = spotById.get(spotId);
+        const rng = mulberry32(strSeed(`${todayKey()}|quiz|${spotId}`));
+        const n = Math.min(s.animals.length, 1 + Math.floor(rng() * 2)); // 1~2종
+        v.quizPicks[spotId] = shuffled(s.animals, rng)
+          .sort((a, b) => (log.dex[a] ? 1 : 0) - (log.dex[b] ? 1 : 0))
+          .slice(0, n);
+        save();
+      }
+      return v.quizPicks[spotId];
+    },
+    canQuiz(animalId) { // 오늘 이 동물이 퀴즈를 낼 수 있는지
+      return !!api.quizFor(animalId)
+        && api.quizAnimalsFor(ANIMALS[animalId].spot).includes(animalId)
+        && !api.animalQuizDone(animalId);
+    },
     animalQuizDone(animalId) { // 오늘 이 동물의 퀴즈를 풀었는지
       return ensureVisit().done.some((d) => d.type === 'quiz' && d.animal === animalId);
     },

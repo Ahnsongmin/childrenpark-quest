@@ -343,7 +343,7 @@ function enterZone(spot) {
   qui.closeSheet();
   $('frame').classList.add('inZone');
   $('zoneName').textContent = `${spot.emoji} ${spot.name}`;
-  $('hud').innerHTML = '<span style="font-size:22px">👣</span><div><b>동물 우리 가까이 걸어가면 🎓 퀴즈</b>가 튀어나와요!<br>퀴즈를 풀면 그 친구가 <b>📔 발견일지</b>에 담겨요</div>';
+  $('hud').innerHTML = '<span style="font-size:22px">👣</span><div>오늘 이 마을 친구 <b>한두 명이 🎓 퀴즈를 준비</b>했어요!<br>누굴까요? 우리 가까이 가면 튀어나와요 — 풀면 <b>📔 발견일지</b>에!</div>';
   interior.enter(spot);
   qui.refresh();
   toast(`${spot.emoji} ${spot.name}에 들어왔어요!`);
