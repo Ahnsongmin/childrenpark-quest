@@ -10,6 +10,7 @@ import { openSheet, toast, updateHud, markSeen, setHudRefresh, initTutorial } fr
 import { initQuests } from './quest.js';
 import { initQuestUI } from './questUI.js';
 import { createInterior } from './interior.js';
+import { initChat } from './chat.js';
 
 /* global MAP — mapdata.js 전역 */
 const $ = (id) => document.getElementById(id);
@@ -364,6 +365,7 @@ $('shEnter').addEventListener('click', () => {
 });
 
 qui = initQuestUI(quests, { onEnterZone: enterZone });
+initChat();
 setHudRefresh(qui.refresh);
 resize();
 window.__quests = quests; // 콘솔 디버그·시연용
