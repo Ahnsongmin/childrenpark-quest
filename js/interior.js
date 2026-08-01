@@ -140,10 +140,13 @@ function animalTexture(a) {
 const lambert = (color) => new THREE.MeshLambertMaterial({ color });
 const seeded = (i, k) => ((i * 2654435761 + k * 97) >>> 0) % 1000 / 1000; // 결정적 배치용
 
-export function createInterior({ renderer, makeChibi, onAnimalTap }) {
+export function createInterior({ renderer, makeChibi, onAnimalTap, onAnimalNear }) {
   let scene = null, camera = null, chibi = null, spot = null;
   let area = { W: 110, D: 180 };
   let sprites = [], spriteMeta = [];
+  let penMeta = []; // 우리 접근 감지용 {aid, x, z, w, d}
+  const nearSet = new Set(); // 지금 우리 곁에 있는 동물 (재진입 시 다시 트리거)
+  const NEAR_DIST = 7; // 울타리에서 이만큼 안쪽으로 다가오면 '가까이'
   const moveTarget = new THREE.Vector3();
   let moving = false, phase = 0;
   const camPos = new THREE.Vector3();
@@ -187,11 +190,13 @@ export function createInterior({ renderer, makeChibi, onAnimalTap }) {
     box(seg, H, T, F, 12 + seg / 2, H / 2, area.D / 2, scene);
 
     // 동물 펜 — 실제 동물사 배치(ZONE_LAYOUTS) 기준
-    sprites = []; spriteMeta = [];
+    sprites = []; spriteMeta = []; penMeta = [];
+    nearSet.clear();
     s.animals.forEach((aid, i) => {
       const pen = (zl && zl.pens[aid]) || fallbackPen(i);
       const px = pen.x, pz = pen.z;
       const PW = pen.w || DEFAULT_PEN.w, PD = pen.d || DEFAULT_PEN.d;
+      penMeta.push({ aid, x: px, z: pz, w: PW, d: PD });
       const penGround = new THREE.Mesh(new THREE.PlaneGeometry(PW, PD).rotateX(-Math.PI / 2), lambert(st.pen));
       penGround.position.set(px, 0.1, pz);
       scene.add(penGround);
@@ -295,6 +300,12 @@ export function createInterior({ renderer, makeChibi, onAnimalTap }) {
       camera.updateProjectionMatrix();
     },
 
+    walkTo(x, z) { // 데모·테스트용: 좌표로 걸어가기
+      if (!scene) return;
+      moveTarget.set(x, 0, z);
+      moving = true;
+    },
+
     handleTap(cx, cy) {
       if (!scene) return;
       const r = renderer.domElement.getBoundingClientRect();
@@ -331,6 +342,23 @@ export function createInterior({ renderer, makeChibi, onAnimalTap }) {
         }
       }
       if (!moving) chibi.idle(t);
+      // 우리 접근 감지 — 울타리 근처(NEAR_DIST)에 오면 알림.
+      // 콜백이 false(다른 창이 열려 있어 못 보여줌)면 소비하지 않고 잠시 후 재시도.
+      if (onAnimalNear) {
+        for (const p of penMeta) {
+          const ex = Math.max(0, Math.abs(pos.x - p.x) - p.w / 2);
+          const ez = Math.max(0, Math.abs(pos.z - p.z) - p.d / 2);
+          const isNear = Math.hypot(ex, ez) < NEAR_DIST;
+          if (isNear && !nearSet.has(p.aid)) {
+            if (!p.nextTry || t >= p.nextTry) {
+              if (onAnimalNear(p.aid, spot) === false) p.nextTry = t + 1.5;
+              else nearSet.add(p.aid); // 벗어났다 다시 오면 재트리거
+            }
+          } else if (!isNear) {
+            nearSet.delete(p.aid);
+          }
+        }
+      }
       // 동물 스프라이트 살랑살랑
       for (const m of spriteMeta) m.sp.position.y = m.baseY + Math.sin(t * 1.7 + m.i * 1.1) * 0.9;
       updateCamera(1 - Math.exp(-dt * 5));

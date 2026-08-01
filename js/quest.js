@@ -1,7 +1,7 @@
 /* 탐험 로직: 일일 배정(시드 기반)·지오펜스·도감·기록·리캡·성장·메달
    "AI 배정"의 시제품 구현 — 날짜·나이·방문 회차·이전 기록으로 결정적으로 선택.
    우선순위(팀 기획): ①안 가본 우리 ②가봤지만 탐험 미완/퀴즈 오답 ③완료한 곳 */
-import { SPOTS, ANIMALS, DISCOVERIES, MEDALS, EXPLORER_TYPES } from './quests-data.js';
+import { SPOTS, ANIMALS, QUIZZES, DISCOVERIES, MEDALS, EXPLORER_TYPES } from './quests-data.js';
 import { LANDMARKS } from './config.js';
 import { prj } from './geo.js';
 import { loadJSON, saveJSON } from './store.js';
@@ -129,15 +129,13 @@ export function initQuests({ onNear } = {}) {
       }
     },
 
-    /* 이 스팟에서 지금 할 수 있는 탐험 목록 */
+    /* 이 스팟에서 지금 할 수 있는 탐험 목록 (퀴즈는 동물 단위 — quizFor 참조) */
     questsFor(spotId) {
       const s = spotById.get(spotId);
       const v = ensureVisit();
       const out = [];
       if (!api.isAssigned(spotId)) return out;
       if (s.kind === 'animal') {
-        const quiz = s.quizzes[band()][pickIdx(spotId, s.quizzes[band()].length)];
-        out.push({ type: 'quiz', quiz, done: v.done.some((d) => d.spot === spotId && d.type === 'quiz') });
         const ob = s.observe[pickIdx(spotId + 'o', s.observe.length)];
         out.push({ type: 'observe', prompt: ob.text, done: v.done.some((d) => d.spot === spotId && d.type === 'observe') });
       } else {
@@ -150,13 +148,23 @@ export function initQuests({ onNear } = {}) {
       return qs.length > 0 && qs.every((q) => q.done);
     },
 
-    answerQuiz(spotId, choice) {
-      const s = spotById.get(spotId);
-      const quiz = s.quizzes[band()][pickIdx(spotId, s.quizzes[band()].length)];
+    /* 동물별 퀴즈 — 나이대(band)에 맞는 문제를 날짜 기반으로 결정적으로 선택 */
+    quizFor(animalId) {
+      const pool = QUIZZES[animalId];
+      if (!pool || !pool.length) return null;
+      const fit = pool.filter((x) => !x.band || x.band === band());
+      const list = fit.length ? fit : pool;
+      return list[pickIdx('a:' + animalId, list.length)];
+    },
+    animalQuizDone(animalId) { // 오늘 이 동물의 퀴즈를 풀었는지
+      return ensureVisit().done.some((d) => d.type === 'quiz' && d.animal === animalId);
+    },
+    answerQuiz(animalId, choice) {
+      const quiz = api.quizFor(animalId);
       const correct = choice === quiz.correct;
-      ensureVisit().done.push({ spot: spotId, type: 'quiz', q: quiz.q, choice, correct, explain: quiz.explain, ts: Date.now() });
+      ensureVisit().done.push({ spot: ANIMALS[animalId].spot, animal: animalId, type: 'quiz', q: quiz.q, choice, correct, explain: quiz.explain, ts: Date.now() });
       save();
-      const fresh = api.meet(quiz.animals); // 틀려도 해설로 배웠으니 '만남'으로 인정
+      const fresh = api.meet([animalId]); // 틀려도 해설로 배웠으니 '만남'으로 인정
       return { correct, explain: quiz.explain, answer: quiz.a[quiz.correct], newAnimals: fresh };
     },
     saveObserve(spotId, text, photo) {

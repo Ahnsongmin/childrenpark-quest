@@ -315,6 +315,7 @@ const interior = createInterior({
   renderer,
   makeChibi: () => buildChibi(avatarCfg, 1.25),
   onAnimalTap: (animalId, spot) => qui.openAnimal(animalId, spot),
+  onAnimalNear: (animalId) => qui.onAnimalNear(animalId),
 });
 
 /* 마을 입장 조건: 데모(탭 이동·산책)에선 자유, 실사용은 지오펜스 근접 시에만
@@ -342,7 +343,7 @@ function enterZone(spot) {
   qui.closeSheet();
   $('frame').classList.add('inZone');
   $('zoneName').textContent = `${spot.emoji} ${spot.name}`;
-  $('hud').innerHTML = '<span style="font-size:22px">👣</span><div>동물 친구를 <b>톡 눌러 인사</b>해 봐요!<br>📷 사진·✏️ 한 줄·🎓 탐험을 하면 <b>📔 발견일지</b>에 담겨요</div>';
+  $('hud').innerHTML = '<span style="font-size:22px">👣</span><div><b>동물 우리 가까이 걸어가면 🎓 퀴즈</b>가 튀어나와요!<br>퀴즈를 풀면 그 친구가 <b>📔 발견일지</b>에 담겨요</div>';
   interior.enter(spot);
   qui.refresh();
   toast(`${spot.emoji} ${spot.name}에 들어왔어요!`);
@@ -363,6 +364,7 @@ qui = initQuestUI(quests, { onEnterZone: enterZone });
 setHudRefresh(qui.refresh);
 resize();
 window.__quests = quests; // 콘솔 디버그·시연용
+window.__interior = interior;
 
 /* ─── UI ─── */
 updateHud();
