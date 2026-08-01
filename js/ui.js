@@ -45,12 +45,20 @@ export function openSheet(lm, gate) {
 }
 
 let toastTimer;
-export function toast(msg) {
+export function toast(msg, title) { // title을 주면 두 줄(제목+본문), 줄바꿈 허용·표시 시간 연장
   const t = $('toast');
-  t.textContent = msg;
+  t.classList.toggle('multi', !!title);
+  t.textContent = '';
+  if (title) {
+    const b = document.createElement('b');
+    b.textContent = title;
+    t.append(b, document.createElement('br'), msg);
+  } else {
+    t.textContent = msg;
+  }
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  toastTimer = setTimeout(() => t.classList.remove('show'), title ? 4500 : 2600);
 }
 
 /* ─── 리니워니 튜토리얼 ─── */

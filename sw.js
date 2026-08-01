@@ -1,6 +1,6 @@
 /* 공원 원정대 서비스 워커 — 오프라인 지원 (앱 셸 사전 캐시 + 갱신형 캐시)
    배포 시 자산이 바뀌면 VERSION을 올려야 이전 캐시가 정리된다. */
-const VERSION = 'quest-v7-1';
+const VERSION = 'quest-v7-2';
 const PRECACHE = [
   './',
   'index.html',

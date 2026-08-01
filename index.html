@@ -323,6 +323,11 @@
     white-space: nowrap;
   }
   #toast.show { opacity: 1; }
+  #toast.multi { /* 제목+설명 두 줄 (동물 설명 등 긴 내용) — 화면 안에서 줄바꿈 */
+    white-space: normal; width: max-content; max-width: calc(100% - 48px);
+    text-align: center; border-radius: 14px; line-height: 1.5;
+  }
+  #toast.multi b { font-size: 13px; }
 
   #credit {
     position: absolute; right: 8px; bottom: 66px; z-index: 4; font-size: 8px;

@@ -299,7 +299,7 @@ export function initQuestUI(quests, opts = {}) {
         if (url) cell.querySelector('.dexemo').innerHTML = `<img src="${url}" class="dexphoto">`;
       }
       cell.addEventListener('click', () => {
-        toast(`${a.emoji} ${a.name} — ${a.desc}`.slice(0, 90));
+        toast(a.desc, `${a.emoji} ${a.name}`);
       });
     }
   }
