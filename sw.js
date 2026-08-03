@@ -1,6 +1,6 @@
 /* 공원 원정대 서비스 워커 — 오프라인 지원 (앱 셸 사전 캐시 + 갱신형 캐시)
    배포 시 자산이 바뀌면 VERSION을 올려야 이전 캐시가 정리된다. */
-const VERSION = 'quest-v10-1';
+const VERSION = 'quest-v10-2';
 const PRECACHE = [
   './',
   'index.html',
@@ -10,7 +10,7 @@ const PRECACHE = [
   'js/config.js', 'js/geo.js', 'js/ground.js', 'js/scene.js', 'js/markers.js',
   'js/character.js', 'js/cameraCtl.js', 'js/family.js', 'js/ui.js', 'js/main.js',
   'js/quests-data.js', 'js/quest.js', 'js/questUI.js', 'js/store.js', 'js/interior.js', 'js/story.js', 'js/chat.js', 'js/track.js',
-  'img/liniwani.avif',
+  'img/liniwani.png',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
 ];
 

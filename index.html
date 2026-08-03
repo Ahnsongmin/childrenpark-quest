@@ -179,7 +179,7 @@
     padding: 11px; cursor: pointer;
   }
   #tuto .mascotRow { display: flex; align-items: flex-end; padding: 0 18px; }
-  #tutoImg { height: 132px; border-radius: 18px; box-shadow: 0 6px 14px rgba(0,0,0,.3); }
+  #tutoImg { height: 132px; filter: drop-shadow(0 6px 12px rgba(0,0,0,.35)); } /* 투명 배경 — 캐릭터만 */
   #tuto .tutoBar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 18px calc(16px + env(safe-area-inset-bottom));
@@ -390,7 +390,7 @@
     align-items: flex-end; gap: 8px; cursor: pointer;
   }
   #greet.show { display: flex; }
-  #greet img { height: 84px; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+  #greet img { height: 84px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.3)); } /* 투명 배경 — 캐릭터만 */
   #greet .bubble {
     background: #fff; border-radius: 14px; padding: 10px 13px; max-width: 230px;
     font-size: 13px; line-height: 1.5; color: #334; box-shadow: 0 4px 14px rgba(0,0,0,.2);
@@ -492,7 +492,7 @@
     <div id="chatBack"></div>
     <div id="chatModal">
       <div id="chatHead">
-        <img src="img/liniwani.avif" alt="리니워니" onerror="this.style.display='none'">
+        <img src="img/liniwani.png" alt="리니워니" onerror="this.style.display='none'">
         <div><b>리니워니에게 물어봐!</b><span>동물·공원 이용·숨은 명소 뭐든지</span></div>
         <button id="chatClose" aria-label="닫기">✕</button>
       </div>
@@ -520,7 +520,7 @@
   <div id="zoneBar"><span id="zoneName"></span><button id="exitZone">🚪 나가기</button></div>
 
   <div id="greet">
-    <img src="img/liniwani.avif" alt="리니워니" onerror="this.style.display='none'">
+    <img src="img/liniwani.png" alt="리니워니" onerror="this.style.display='none'">
     <div class="bubble" id="greetText"></div>
   </div>
 
@@ -548,7 +548,7 @@
       <button id="tutoAction"></button>
     </div>
     <div class="mascotRow">
-      <img id="tutoImg" src="img/liniwani.avif" alt="리니워니" onerror="this.style.display='none'">
+      <img id="tutoImg" src="img/liniwani.png" alt="리니워니" onerror="this.style.display='none'">
     </div>
     <div class="tutoBar">
       <button id="tutoSkip">건너뛰기</button>
