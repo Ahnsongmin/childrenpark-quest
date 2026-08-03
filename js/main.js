@@ -426,3 +426,35 @@ function frame(ts) {
 requestAnimationFrame(frame);
 
 if (new URLSearchParams(location.search).get('walk') === '1') startWalk(false);
+
+/* ?seed=1 — 리캡 시연: 오늘 기록이 비어 있으면 시연 데이터를 채우고 스토리를 바로 연다.
+   실기록이 이미 있으면 주입 없이 스토리만 연다 (실사용 데이터 보호). */
+if (new URLSearchParams(location.search).get('seed') === '1') {
+  import('./story.js').then(({ openStory }) => {
+    localStorage.setItem('quest.tutorial.v2', '1'); // 시연 중 튜토리얼 생략
+    $('tuto').classList.remove('show');
+    if (!quests.visit.done.length) {
+      quests.answerQuiz('tiger', 0);    // 오답
+      quests.answerQuiz('elephant', 0); // 오답
+      quests.answerQuiz('lion', 0);     // 정답
+      quests.answerQuiz('alpaca', 1);   // 정답
+      quests.completeDwell('palgak', '전망대에서 공원을 다 내려다봤어요');
+      quests.saveObserve('minivillage', '수달이 돌멩이를 공처럼 굴리며 놀고 있었어요', null);
+      const def = quests.discovery().def;
+      for (const t of def.targets.slice(0, def.need)) quests.addDiscoveryPhoto(t, null);
+    }
+    let tr = null;
+    try { tr = JSON.parse(localStorage.getItem('quest.track.v1')); } catch (_) { /* 손상 → 새로 */ }
+    const today = quests.visit.date;
+    if (!tr || tr.date !== today || tr.pts.length < 2) { // 실트랙 없을 때만 시연 동선
+      const pts = MAP.walkRoute.filter((_, i) => i % 2 === 0).map(([x, z], i) => [x, z, i * 30]);
+      localStorage.setItem('quest.track.v1', JSON.stringify({
+        date: today, t0: Date.now() - 9240000, pts, distM: 3100,
+        staySec: { predator: 2520, minivillage: 610, tropical: 300, palgak: 480, botanic: 900 },
+        spotOrder: ['minivillage', 'predator', 'tropical', 'palgak', 'botanic'],
+        activeSec: 9240,
+      }));
+    }
+    setTimeout(() => openStory(quests), 400);
+  });
+}
