@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { SB_URL, SB_KEY, KEYS } from './config.js';
 import { M2U } from './geo.js';
-import { buildChibi, makeNameSprite, DEFAULT_AVATAR } from './character.js';
+import { buildAvatar, makeNameSprite, DEFAULT_AVATAR } from './character.js';
 import { toast } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -27,7 +27,11 @@ export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v
     ctx.scene.remove(m.chibi.group);
     m.chibi.group.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
-      if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+      if (o.material) {
+        // 캐릭터 이미지 텍스처는 캐시 공유(sharedMap) — dispose하면 다른 아바타가 깨짐
+        if (o.material.map && !o.material.userData.sharedMap) o.material.map.dispose();
+        o.material.dispose();
+      }
     });
   }
 
@@ -35,7 +39,7 @@ export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v
     if (m.chibi) disposeChibi(m);
     m.avKey = JSON.stringify(av);
     m.name = name;
-    m.chibi = buildChibi(av, 0.8);
+    m.chibi = buildAvatar(av, 0.8);
     m.label = makeNameSprite();
     m.label.position.y = 17;
     m.chibi.group.add(m.label);

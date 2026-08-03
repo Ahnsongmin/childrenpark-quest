@@ -4,7 +4,7 @@ import { prj, M2U, inPark } from './geo.js';
 import { buildWorld } from './scene.js';
 import { createMarkers } from './markers.js';
 import { createCameraCtl } from './cameraCtl.js';
-import { buildChibi, loadAvatar, saveAvatar } from './character.js';
+import { buildAvatar, loadAvatar, saveAvatar } from './character.js';
 import { initFamily } from './family.js';
 import { openSheet, toast, updateHud, markSeen, setHudRefresh, initTutorial } from './ui.js';
 import { initQuests } from './quest.js';
@@ -48,14 +48,14 @@ const avatarCfg = loadAvatar();
 const meG = new THREE.Group();
 meG.visible = false;
 scene.add(meG);
-let meChibi = buildChibi(avatarCfg, 1.25); // 지도 위 시인성 위해 살짝 크게
+let meChibi = buildAvatar(avatarCfg, 1.25); // 지도 위 시인성 위해 살짝 크게
 meG.add(meChibi.group);
 
 /* 리캡에서 유형 장비를 획득·교체하면 지도 아바타에 바로 반영 */
 window.addEventListener('avatar-changed', () => {
   Object.assign(avatarCfg, loadAvatar());
   meG.remove(meChibi.group);
-  meChibi = buildChibi(avatarCfg, 1.25);
+  meChibi = buildAvatar(avatarCfg, 1.25);
   meG.add(meChibi.group);
 });
 
@@ -425,7 +425,7 @@ const quests = initQuests({ onNear: (spot, fresh) => { if (qui) qui.onNear(spot,
 /* ─── 마을 안 내부 지도 ─── */
 const interior = createInterior({
   renderer,
-  makeChibi: () => buildChibi(avatarCfg, 1.25),
+  makeChibi: () => buildAvatar(avatarCfg, 1.25),
   onAnimalTap: (animalId, spot) => qui.openAnimal(animalId, spot),
   onAnimalNear: (animalId) => qui.onAnimalNear(animalId),
 });

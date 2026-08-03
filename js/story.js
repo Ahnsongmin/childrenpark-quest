@@ -702,10 +702,13 @@ function renderType(ctx, s, chibiImg) {
   ctx.font = `600 42px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.85)';
   wrapText(ctx, s.type.description, W - 180, 2).forEach((l, i) => ctx.fillText(l, W / 2, 530 + i * 56));
 
-  /* 캐릭터 (유형 복장 착용 — 동물 후드·소품) */
+  /* 캐릭터 (유형 복장 착용 — 동물 후드·소품). 이미지 비율 유지(contain)·박스 하단 정렬 */
   if (chibiImg) {
-    const cw = 495, chh = 660;
-    ctx.drawImage(chibiImg, (W - cw) / 2, 620, cw, chh);
+    const boxW = 780, boxH = 660, boxY = 620;
+    const a = (chibiImg.width || 1) / (chibiImg.height || 1);
+    let dw = boxW, dh = dw / a;
+    if (dh > boxH) { dh = boxH; dw = dh * a; }
+    ctx.drawImage(chibiImg, (W - dw) / 2, boxY + (boxH - dh), dw, dh);
   } else {
     ctx.font = `300px ${FONT}`;
     ctx.fillText(s.type.animalEmoji, W / 2, 1050);

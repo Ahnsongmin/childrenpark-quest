@@ -63,7 +63,16 @@
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="spriteNote" style="display:none">
+    <h3>🧢 탐험복</h3>
+    <p style="font-size:12.5px;color:#5d7a63;line-height:1.6;margin:0">
+      캐릭터의 옷과 모자는 <b>탐험 유형</b>에 따라 바뀌어요!<br>
+      공원을 탐험하고 리캡에서 나의 유형을 찾아 새 탐험복을 얻어 보세요.
+      <a href="characters.html" style="color:#2e6b34;font-weight:700">유형 도감 보기 →</a>
+    </p>
+  </div>
+
+  <div class="panel" id="stylePanel">
     <h3>스타일</h3>
     <div class="opts" id="styleOpts">
       <button data-v="basic">👕 티셔츠 + 바지</button>
@@ -108,7 +117,7 @@
 </script>
 <script type="module">
 import * as THREE from 'three';
-import { buildChibi, loadAvatar, saveAvatar, TOPS, BOTTOMS } from './js/character.js';
+import { buildAvatar, loadAvatar, saveAvatar, TOPS, BOTTOMS } from './js/character.js';
 import { loadJSON, saveJSON } from './js/store.js';
 
 const cfg = loadAvatar();
@@ -140,11 +149,25 @@ function rebuild() {
     scene.remove(chibi.group);
     chibi.group.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
-      if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+      if (o.material) {
+        // 캐릭터 이미지 텍스처는 캐시 공유(sharedMap) — dispose 금지
+        if (o.material.map && !o.material.userData.sharedMap) o.material.map.dispose();
+        o.material.dispose();
+      }
     });
   }
-  chibi = buildChibi(cfg);
+  chibi = buildAvatar(cfg); // 지도와 동일한 모습(이미지 스프라이트, 실패 시 치비)
   scene.add(chibi.group);
+  chibi.ready.then((isSprite) => {
+    // 이미지 캐릭터일 땐 옷 선택이 외형에 반영되지 않음 → 패널 숨기고 안내
+    if (!isSprite) return;
+    for (const id of ['stylePanel', 'topPanel', 'bottomPanel']) {
+      const el = $(id);
+      if (el) el.style.display = 'none';
+    }
+    const note = $('spriteNote');
+    if (note) note.style.display = 'block';
+  });
 }
 rebuild();
 

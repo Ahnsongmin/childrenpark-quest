@@ -2,7 +2,7 @@
    도감(16~32장 연속 렌더)·리캡 유형 슬라이드 공용. WebGL 컨텍스트는 1개를 재사용한다
    (브라우저 컨텍스트 상한 ~8-16개 — 카드마다 렌더러를 만들면 앞선 카드가 지워짐). */
 import * as THREE from 'three';
-import { buildChibi } from './character.js';
+import { buildChibi, characterImagePath } from './character.js';
 
 let shared = null; // { renderer, camera, scene, light 준비된 세트 }
 const cache = new Map(); // key → Promise<Image|null>
@@ -48,12 +48,14 @@ function disposeGroup(group) {
   });
 }
 
-/* 아바타 설정(성별·의상·gear=유형 combo id)으로 캐릭터 이미지를 렌더.
-   반환: HTMLImageElement (WebGL 실패 시 null → 호출측 이모지 폴백) */
+/* 아바타 설정(성별·의상·gear=유형 combo id)으로 캐릭터 이미지를 반환.
+   ①img/characters/*.webp 일러스트 → ②오프스크린 치비 렌더 → ③null(호출측 이모지 폴백) */
 export function renderCharacterImage(cfg, w = 540, h = 720) {
   const key = JSON.stringify([cfg.gender, !!cfg.dress, cfg.top | 0, cfg.bottom | 0, cfg.gear || null, w, h]);
   if (cache.has(key)) return cache.get(key);
   const p = (async () => {
+    const art = await loadImg(characterImagePath(cfg));
+    if (art) return art;
     try {
       const { renderer, camera, scene } = getShared(w, h);
       const ch = buildChibi(cfg);

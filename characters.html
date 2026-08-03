@@ -193,7 +193,7 @@ function toast(msg) {
 }
 
 /* 도감 캐릭터 이미지 — ①img/characters/{id}.webp(파일 준비 시 HAS_WEBP를 true로) ②치비 렌더 ③동물 이모지 폴백 */
-const HAS_WEBP = false; // 생성 이미지(imagePath)를 넣은 뒤 true로 — 지금은 404 프로브를 막아 콘솔을 깨끗하게 유지
+const HAS_WEBP = true; // img/characters/*.webp 32장 준비됨 (시트에서 추출한 일러스트)
 function loadImg(src) {
   return new Promise((resolve) => {
     const img = new Image();

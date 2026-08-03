@@ -409,6 +409,123 @@ export function buildChibi(cfg = {}, scale = 1) {
   return api;
 }
 
+/* ── 이미지 스프라이트 아바타 ──
+   시트에서 추출한 32캐릭터 일러스트(img/characters/{combo}-{girl|boy}.webp)가
+   지도·마을 안·가족 마커에서 걸어다닌다. buildChibi와 동일 API(빌보드라 setHeading은 좌우 반전).
+   이미지 로드 실패 시 기존 3D 치비로 자동 폴백. */
+const SPRITE_H = 14; // 유닛 키 — 기존 치비(약 12~14)와 동일한 지도 스케일감
+const DEFAULT_SPRITE_COMBO = 'curious-detective'; // 유형 미획득 시 기본 탐험복(판정 폴백 유형과 동일)
+const texCache = new Map(); // url -> Promise<Texture> (가족 마커와 내 아바타가 공유)
+
+function loadCharTexture(url) {
+  if (!texCache.has(url)) {
+    texCache.set(url, new Promise((resolve, reject) => {
+      new THREE.TextureLoader().load(url, (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        resolve(t);
+      }, undefined, reject);
+    }));
+  }
+  return texCache.get(url);
+}
+
+/* 아바타 설정 → 캐릭터 이미지 경로 (도감·리캡 카드에서도 사용) */
+export function characterImagePath(cfg = {}) {
+  const gear = parseComboId(cfg.gear) ? cfg.gear : DEFAULT_SPRITE_COMBO;
+  return `img/characters/${gear}-${cfg.gender === 'f' ? 'girl' : 'boy'}.webp`;
+}
+
+export function buildAvatar(cfg = {}, scale = 1) {
+  const merged = { ...DEFAULT_AVATAR, ...cfg };
+  const root = new THREE.Group();
+  root.scale.setScalar(scale);
+
+  let inner = null;   // 이미지 실패 시 치비 api (전체 위임)
+  let sprite = null, baseW = SPRITE_H * 0.7, flip = 1;
+  let bob = 0, rock = 0, squash = 1;
+
+  function apply() {
+    if (!sprite) return;
+    sprite.scale.set(baseW * flip, SPRITE_H * squash, 1);
+    sprite.position.y = 0.15 + bob;
+    sprite.material.rotation = rock;
+  }
+
+  const ready = loadCharTexture(characterImagePath(merged)).then((tex) => {
+    const img = tex.image;
+    baseW = SPRITE_H * (img.width / img.height);
+    const mat2 = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+    mat2.userData.sharedMap = true; // 캐시 공유 텍스처 — dispose 금지 표식
+    sprite = new THREE.Sprite(mat2);
+    sprite.center.set(0.5, 0); // 발끝 기준 — bob이 점프처럼 보이게
+    root.add(sprite);
+    const blob = new THREE.Mesh(
+      new THREE.CircleGeometry(2.6, 16).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.18 }),
+    );
+    blob.position.y = 0.12;
+    root.add(blob);
+    apply();
+    return true;
+  }).catch(() => {
+    inner = buildChibi(merged, 1);
+    root.add(inner.group);
+    return false;
+  });
+
+  const api = {
+    group: root,
+    ready, // Promise<boolean> — true: 이미지 스프라이트, false: 치비 폴백
+    setHeading(rad) { // 빌보드: 동쪽(+x) 이동이면 원본, 서쪽이면 좌우 반전
+      if (inner) { inner.setHeading(rad); return; }
+      const s = Math.sin(rad);
+      if (s > 0.25) flip = -1;
+      else if (s < -0.25) flip = 1;
+      apply();
+    },
+    setPhase(p, run = false) { // 걷기: 통통 bob + 좌우 갸웃 + 살짝 스쿼시
+      if (inner) { inner.setPhase(p, run); return; }
+      const amp = run && !REDUCED ? 0.9 : 0.55;
+      bob = Math.abs(Math.sin(p)) * amp;
+      rock = REDUCED ? 0 : Math.sin(p) * (run ? 0.1 : 0.07) * -flip;
+      squash = REDUCED ? 1 : 1 - Math.abs(Math.sin(p)) * 0.03;
+      apply();
+    },
+    idle(t) { // 정지: 잔여 모션 감쇠 + 숨쉬기
+      if (inner) { inner.idle(t); return; }
+      bob *= 0.86;
+      rock *= 0.86;
+      squash = 1 + (REDUCED ? 0 : Math.sin(t * 2.2) * 0.012);
+      apply();
+    },
+    celebrate(t) { // 축하 점프
+      if (inner) { inner.celebrate(t); return; }
+      if (REDUCED) { api.idle(t); return; }
+      bob = Math.abs(Math.sin(t * 6)) * 1.6;
+      rock = Math.sin(t * 12) * 0.05;
+      squash = 1;
+      apply();
+    },
+    inspect(t) { // 관찰: 앞으로 몸을 기울이는 대신 확대·축소 펄스
+      if (inner) { inner.inspect(t); return; }
+      if (REDUCED) { api.idle(t); return; }
+      bob = 0;
+      rock = 0.12 * -flip;
+      squash = 1 + Math.sin(t * 5) * 0.04;
+      apply();
+    },
+    guide(t) { // 안내: 좌우로 갸웃갸웃
+      if (inner) { inner.guide(t); return; }
+      if (REDUCED) { api.idle(t); return; }
+      bob *= 0.86;
+      rock = Math.sin(t * 5) * 0.1;
+      squash = 1;
+      apply();
+    },
+  };
+  return api;
+}
+
 /* 머리 위 이름표 스프라이트 (가족 마커·거리 표시용) */
 export function makeNameSprite() {
   const c = document.createElement('canvas');
