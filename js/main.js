@@ -11,6 +11,7 @@ import { initQuests } from './quest.js';
 import { initQuestUI } from './questUI.js';
 import { createInterior } from './interior.js';
 import { initChat } from './chat.js';
+import { trackPosition, trackEnterSpot, trackExitSpot } from './track.js';
 
 /* global MAP — mapdata.js 전역 */
 const $ = (id) => document.getElementById(id);
@@ -46,8 +47,16 @@ const avatarCfg = loadAvatar();
 const meG = new THREE.Group();
 meG.visible = false;
 scene.add(meG);
-const meChibi = buildChibi(avatarCfg, 1.25); // 지도 위 시인성 위해 살짝 크게
+let meChibi = buildChibi(avatarCfg, 1.25); // 지도 위 시인성 위해 살짝 크게
 meG.add(meChibi.group);
+
+/* 리캡에서 유형 장비를 획득·교체하면 지도 아바타에 바로 반영 */
+window.addEventListener('avatar-changed', () => {
+  Object.assign(avatarCfg, loadAvatar());
+  meG.remove(meChibi.group);
+  meChibi = buildChibi(avatarCfg, 1.25);
+  meG.add(meChibi.group);
+});
 
 // GPS 정확도 원 + 파랑 펄스 링 + 방향 콘 (포켓몬GO식)
 const meAcc = new THREE.Mesh(
@@ -78,6 +87,7 @@ function setMe(x, z, accM) {
   meAcc.scale.setScalar(Math.max(0.001, accM > 50 ? accM * M2U : 0.001));
   famApi.shareMyPos(x, z);
   quests.onPosition(x, z); // 지오펜스: 동물 우리 근접 시 탐험 활성
+  trackPosition(x, z); // 오늘의 동선·이동거리·체류시간 기록 (리캡용, 기기에만 저장)
 }
 const myPos = () => (meG.visible ? [meG.position.x, meG.position.z] : null);
 
@@ -349,10 +359,12 @@ function enterZone(spot) {
     ? '<span style="font-size:22px">👣</span><div>오늘 이 마을 친구 <b>한두 명이 🎓 퀴즈를 준비</b>했어요!<br>누굴까요? 우리 가까이 가면 튀어나와요 — 풀면 <b>📔 발견일지</b>에!</div>'
     : '<span style="font-size:22px">👣</span><div>오늘 이 마을의 퀴즈는 끝났어요!<br>동물 친구를 톡 눌러 <b>📷 사진·✏️ 한 줄</b>로 추억을 남겨봐요</div>';
   interior.enter(spot);
+  trackEnterSpot(spot.id); // 마을 안 체류시간 귀속
   qui.refresh();
   toast(`${spot.emoji} ${spot.name}에 들어왔어요!`);
 }
 function exitZone() {
+  trackExitSpot();
   interior.exit();
   $('frame').classList.remove('inZone');
   camCtl.apply();

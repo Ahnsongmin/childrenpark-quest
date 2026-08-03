@@ -315,7 +315,13 @@
   .cmsg.bot { background: #f2f7ef; color: #2d3a2e; border-bottom-left-radius: 5px; }
   .cmsg.user { background: #2e6b34; color: #fff; margin-left: auto; border-bottom-right-radius: 5px; }
   .cmsg.wait { color: #9ab095; letter-spacing: 3px; }
-  #chatChips { padding: 4px 14px 0; }
+  /* 자주 묻는 질문 캡션 — 가로 스크롤 한 줄 */
+  #chatChips {
+    padding: 4px 14px 0; display: flex; gap: 6px;
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+  }
+  #chatChips::-webkit-scrollbar { display: none; }
+  #chatChips .chip { flex: none; cursor: pointer; }
   #chatInputRow { display: flex; gap: 8px; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
   #chatInputRow input {
     flex: 1; border: 2px solid #e2e8e2; border-radius: 14px; padding: 10px 12px; font-size: 14px;
@@ -348,6 +354,18 @@
     font-size: 14px; font-weight: 800; padding: 12px 22px; cursor: pointer;
     box-shadow: 0 4px 14px rgba(0,0,0,.4);
   }
+  /* 유형 슬라이드 — 새 유형 외형 선택 (다회차) */
+  #storyChoice {
+    position: absolute; bottom: 84px; left: 16px; right: 16px; z-index: 3;
+    display: none; gap: 10px;
+  }
+  #storyChoice button {
+    flex: 1; border: 0; border-radius: 16px; padding: 13px 8px;
+    font-size: 13.5px; font-weight: 800; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,.4);
+  }
+  #choiceKeep { background: #ffffffd9; color: #445; }
+  #choiceNew { background: #f5b83d; color: #4a3800; }
 
   /* 마을 안(내부 지도) 모드 */
   #zoneBar {
@@ -492,6 +510,10 @@
     <button id="storyClose" aria-label="닫기">✕</button>
     <canvas id="storyCv"></canvas>
     <div id="storyHit"></div>
+    <div id="storyChoice">
+      <button id="choiceKeep">지금 모습 유지</button>
+      <button id="choiceNew"></button>
+    </div>
     <button id="storyShare">📤 이 장면 공유하기</button>
   </div>
 

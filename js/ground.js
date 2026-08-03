@@ -3,8 +3,9 @@ import * as THREE from 'three';
 
 /* global MAP */
 
-/* 2D 버전의 SVG 조립 순서·색을 캔버스에 그대로 재현 (건물·물·나무는 3D 메시라 제외) */
-function paintMap(ctx) {
+/* 2D 버전의 SVG 조립 순서·색을 캔버스에 그대로 재현 (건물·물·나무는 3D 메시라 제외)
+   리캡 스토리의 동선 미니 지도에서도 재사용(export) */
+export function paintMap(ctx) {
   const fill = (d, color, alpha = 1) => {
     ctx.globalAlpha = alpha;
     ctx.fillStyle = color;

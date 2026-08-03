@@ -1,5 +1,7 @@
-/* 치비 캐릭터 — 지도 아바타·가족 마커·꾸미기 미리보기 공용
-   설정: { gender:'m'|'f', dress:bool, top:0|1, bottom:0|1, name:string } */
+/* 치비 캐릭터 — 지도 아바타·가족 마커·꾸미기 미리보기·리캡 유형 슬라이드 공용
+   설정: { gender:'m'|'f', dress:bool, top:0|1, bottom:0|1, name:string, gear:유형id|null }
+   gear: 리캡의 모험 유형으로 획득하는 장비 (observer=돋보기 · collector=카메라 ·
+         scholar=학사모 · wanderer=밀짚모자 · adventurer=나침반) */
 import * as THREE from 'three';
 import { KEYS } from './config.js';
 
@@ -13,7 +15,7 @@ export const BOTTOMS = [
 ];
 export const DRESS = { label: '분홍 원피스', color: '#f472b6' };
 
-export const DEFAULT_AVATAR = { gender: 'm', dress: false, top: 0, bottom: 0, name: '' };
+export const DEFAULT_AVATAR = { gender: 'm', dress: false, top: 0, bottom: 0, name: '', gear: null };
 
 export function loadAvatar() {
   try {
@@ -44,8 +46,70 @@ const mat = (color) => new THREE.MeshLambertMaterial({ color });
 
 /* 키 약 12unit(≈10m 지도 스케일의 오버사이즈 캐릭터, 나무 25·건물 9~18과 조화)
    +Z를 바라보는 자세로 제작 → setHeading(atan2(dx,dz)) */
+/* 유형 장비 메시 — body(통통 bob 그룹)에 붙여 캐릭터와 함께 움직인다 */
+function addGear(body, gear) {
+  const headY = 9.4;
+  if (gear === 'observer') { // 돋보기 (오른손)
+    const g = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.22, 8, 18), mat('#F2A03D'));
+    g.add(ring);
+    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.85, 16),
+      new THREE.MeshLambertMaterial({ color: '#9fd8e8', transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+    g.add(glass);
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.5, 8), mat('#8a5a2b'));
+    handle.position.y = -1.6;
+    g.add(handle);
+    g.position.set(3.1, 4.2, 1.1);
+    g.rotation.z = -0.35;
+    body.add(g);
+  } else if (gear === 'collector') { // 카메라 (가슴)
+    const g = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.2, 0.8), mat('#3b4252'));
+    g.add(box);
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.5, 12).rotateX(Math.PI / 2), mat('#9fd8e8'));
+    lens.position.z = 0.5;
+    g.add(lens);
+    g.position.set(0, 5.6, 2.0);
+    body.add(g);
+  } else if (gear === 'scholar') { // 학사모 (머리)
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 0.9, 12), mat('#2c2c34'));
+    cap.position.y = headY + 2.9;
+    body.add(cap);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.3, 4.6), mat('#2c2c34'));
+    plate.position.y = headY + 3.45;
+    plate.rotation.y = Math.PI / 4;
+    body.add(plate);
+    const tassel = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), mat('#F2A03D'));
+    tassel.position.set(2.1, headY + 3.0, 2.1);
+    body.add(tassel);
+  } else if (gear === 'wanderer') { // 밀짚모자 (머리)
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(3.7, 3.9, 0.3, 18), mat('#e7c56a'));
+    brim.position.y = headY + 2.7;
+    body.add(brim);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(2.1, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), mat('#e7c56a'));
+    dome.position.y = headY + 2.7;
+    body.add(dome);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(2.12, 2.12, 0.5, 16), mat('#c2543e'));
+    band.position.y = headY + 2.95;
+    body.add(band);
+  } else if (gear === 'adventurer') { // 나침반 (왼손)
+    const g = new THREE.Group();
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.35, 14), mat('#C68A3E'));
+    g.add(disc);
+    const face = new THREE.Mesh(new THREE.CircleGeometry(0.68, 14).rotateX(-Math.PI / 2), mat('#FBF6E9'));
+    face.position.y = 0.19;
+    g.add(face);
+    const needle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 1.0), mat('#E8664F'));
+    needle.position.y = 0.24;
+    needle.rotation.y = 0.6;
+    g.add(needle);
+    g.position.set(-3.0, 3.9, 0.9);
+    body.add(g);
+  }
+}
+
 export function buildChibi(cfg = {}, scale = 1) {
-  const { gender, dress, top, bottom } = { ...DEFAULT_AVATAR, ...cfg };
+  const { gender, dress, top, bottom, gear } = { ...DEFAULT_AVATAR, ...cfg };
   const root = new THREE.Group();
   const body = new THREE.Group(); // 통통 bob은 body만 (그림자는 바닥 고정)
   root.add(body);
@@ -133,6 +197,8 @@ export function buildChibi(cfg = {}, scale = 1) {
     body.add(pivot);
     legs.push(pivot);
   }
+
+  if (gear) addGear(body, gear);
 
   // 발밑 그림자
   const blob = new THREE.Mesh(

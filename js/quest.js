@@ -293,6 +293,13 @@ export function initQuests({ onNear } = {}) {
         dexTotal: Object.keys(log.dex).length,
       };
     },
+    /* 리캡에서 오늘의 유형을 확정 기록 — 유형별 누적 횟수 = 레벨 (캐릭터 성장) */
+    recordType(typeId) {
+      if (!profile.types) profile.types = {};
+      profile.types[todayKey()] = typeId; // 하루 1개, 마지막 계산 기준
+      saveJSON(P_KEY, profile);
+      return Object.values(profile.types).filter((t) => t === typeId).length;
+    },
     growth() {
       return log.visits.map((v) => {
         const newA = Object.entries(log.dex).filter(([, m]) => m.first === v.date).map(([id]) => ANIMALS[id].name);

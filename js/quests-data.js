@@ -408,17 +408,52 @@ export const DISCOVERIES = [
     targets: ['jaguar', 'squirrelmonkey', 'lemur', 'treeporc'], need: 2 },
 ];
 
+/* 체류 스팟 리캡 콘텐츠 — 관람 포인트 2개 + 다음 방문 추천(next: 다른 체류 스팟 id, 순환).
+   사실 정보는 기존 검증분만 사용(팔각당 4층 무료 전망대·실내놀이터·카페, 환경연못 홍련 — 2026-08-02 sisul.or.kr 확인).
+   사진(img/spots/{id}.jpg)은 시제품용 일러스트 — 본사업 시 방문객이 미션 중 찍은 실사진으로 교체 전제. */
+export const DWELL_INFO = {
+  foreststage: {
+    points: [
+      { emoji: '🎶', h: '숲의 소리 듣기', d: '공연이 없는 날에도 새소리·바람 소리가 무대를 채워요' },
+      { emoji: '🌳', h: '나무 그늘 쉼터', d: '무대를 둘러싼 나무 그늘 아래가 쉬어가기 좋아요' },
+    ],
+    next: 'palgak',
+  },
+  palgak: {
+    points: [
+      { emoji: '🔭', h: '4층 전망대 (무료)', d: '공원이 한눈에 내려다보이는 리니워니 추천 명소!' },
+      { emoji: '🛝', h: '실내놀이터·카페', d: '더운 날, 비 오는 날 쉬어가기 좋아요' },
+    ],
+    next: 'botanic',
+  },
+  botanic: {
+    points: [
+      { emoji: '🌵', h: '온실 식물 구경', d: '이름표를 읽으며 처음 보는 식물을 찾아봐요' },
+      { emoji: '🪷', h: '환경연못 산책', d: '여름엔 연못에 홍련이 피어나요' },
+    ],
+    next: 'openstage',
+  },
+  openstage: {
+    points: [
+      { emoji: '🎤', h: '오늘의 공연 확인', d: '행사가 있는 날엔 무대 앞이 가장 신나요' },
+      { emoji: '⛲', h: '음악분수 가까이', d: '음악에 맞춰 춤추는 분수가 걸어서 금방이에요' },
+    ],
+    next: 'foreststage',
+  },
+};
+
 export const MEDALS = [
   { need: 3, name: '새싹 탐험가', emoji: '🌱' },
   { need: 8, name: '숲 탐험가', emoji: '🌳' },
   { need: 15, name: '리니워니 친구', emoji: '🦊' },
 ];
 
-/* 모험 유형 — 오늘의 기록으로 계산하는 재미 요소 (규칙 기반) */
+/* 모험 유형 — 오늘의 기록으로 계산하는 재미 요소 (규칙 기반)
+   gear: 유형별 캐릭터 장비 — 리캡에서 획득하면 지도 아바타에도 착용됨 */
 export const EXPLORER_TYPES = [
-  { id: 'observer', name: '조용한 관찰가', emoji: '🔍', desc: '오래 지켜보고 기록하는 것을 좋아해요.' },
-  { id: 'collector', name: '장면 수집가', emoji: '📷', desc: '멋진 순간을 사진으로 모으는 걸 좋아해요.' },
-  { id: 'scholar', name: '꼬마 박사', emoji: '🎓', desc: '동물 지식 퀴즈에 강한 똑똑한 탐험가!' },
-  { id: 'wanderer', name: '느긋한 산책가', emoji: '🍃', desc: '한적한 곳에서 풍경을 즐기는 탐험가예요.' },
-  { id: 'adventurer', name: '씩씩한 개척가', emoji: '🧭', desc: '공원 구석구석 새로운 곳을 찾아다녀요.' },
+  { id: 'observer', name: '조용한 관찰가', emoji: '🔍', desc: '오래 지켜보고 기록하는 것을 좋아해요.', gear: '돋보기', gearEmoji: '🔎' },
+  { id: 'collector', name: '장면 수집가', emoji: '📷', desc: '멋진 순간을 사진으로 모으는 걸 좋아해요.', gear: '카메라', gearEmoji: '📷' },
+  { id: 'scholar', name: '꼬마 박사', emoji: '🎓', desc: '동물 지식 퀴즈에 강한 똑똑한 탐험가!', gear: '학사모', gearEmoji: '🎓' },
+  { id: 'wanderer', name: '느긋한 산책가', emoji: '🍃', desc: '한적한 곳에서 풍경을 즐기는 탐험가예요.', gear: '밀짚모자', gearEmoji: '👒' },
+  { id: 'adventurer', name: '씩씩한 개척가', emoji: '🧭', desc: '공원 구석구석 새로운 곳을 찾아다녀요.', gear: '나침반', gearEmoji: '🧭' },
 ];

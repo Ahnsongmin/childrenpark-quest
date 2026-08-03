@@ -90,19 +90,36 @@ async function ask(q) {
   busy = false;
 }
 
-const CHIPS = ['수달은 뭘 잘해?', '숨은 명소 알려줘', '발견일지 어떻게 채워?', '입장료 있어?'];
+/* 자주 하는 질문 캡션 — 클릭하면 API 왕복 없이 바로 답한다 (답변은 전부 내장 봇의 검증분).
+   그 외 질문은 아래 직접 질문하기 입력란 → AI(env-gated)·내장 봇 파이프라인 */
+const FAQ = [
+  { q: '입장료 있어?', a: localAnswer('입장료') },
+  { q: '몇 시까지 해?', a: localAnswer('몇 시') },
+  { q: '숨은 명소 알려줘', a: localAnswer('숨은 명소') },
+  { q: '발견일지 어떻게 채워?', a: localAnswer('발견일지') },
+  { q: '퀴즈는 어디서 풀어?', a: localAnswer('퀴즈') },
+  { q: '사진은 어디에 저장돼?', a: localAnswer('사진') },
+  { q: '오늘의 리캡이 뭐야?', a: localAnswer('리캡') },
+  { q: '어떻게 가는 게 편해?', a: localAnswer('버스') },
+  { q: '수달은 뭘 잘해?', a: localAnswer('수달') },
+  { q: '미어캣은 뭘 해?', a: localAnswer('미어캣') },
+];
 
 export function initChat() {
   $('chatBtn').addEventListener('click', () => {
     $('chatWrap').classList.add('open');
-    if (!history.length) addMsg('bot', '안녕! 나는 공원 지킴이 리니워니야 🦊 동물이든 공원이든 궁금한 걸 물어봐!');
+    if (!history.length) addMsg('bot', '안녕! 나는 공원 지킴이 리니워니야 🦊 아래 자주 묻는 질문을 누르거나, 직접 물어봐!');
     $('chatText').focus();
   });
   $('chatBack').addEventListener('click', () => $('chatWrap').classList.remove('open'));
   $('chatClose').addEventListener('click', () => $('chatWrap').classList.remove('open'));
 
-  $('chatChips').innerHTML = CHIPS.map((c) => `<button class="chip">${esc(c)}</button>`).join('');
-  $('chatChips').querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => ask(b.textContent)));
+  $('chatChips').innerHTML = FAQ.map((f, i) => `<button class="chip" data-i="${i}">${esc(f.q)}</button>`).join('');
+  $('chatChips').querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => {
+    const f = FAQ[+b.dataset.i];
+    addMsg('user', f.q);
+    addMsg('bot', f.a); // 즉답 — API 호출 없음
+  }));
 
   const send = () => {
     const t = $('chatText').value.trim();
