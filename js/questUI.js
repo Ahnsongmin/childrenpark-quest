@@ -3,6 +3,10 @@ import { ANIMALS } from './quests-data.js';
 import { savePhoto, getPhoto, fileToDataUrl } from './store.js';
 import { toast, seen } from './ui.js';
 import { openStory } from './story.js';
+import { typeCardHTML, characterAvatarEl } from './type-card.js';
+import { renderCharacterImage } from './type-render.js';
+import { loadAvatar } from './character.js';
+import { clearToday } from './track.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -183,7 +187,10 @@ export function initQuestUI(quests, opts = {}) {
     qSheet.innerHTML = html;
     qWrap.classList.add('open');
     renderHud();
-    if (r.done) toast(`🎉 발견 탐험 "${r.def.title}" 완성!`);
+    if (r.done) {
+      toast(`🎉 발견 탐험 "${r.def.title}" 완성!`);
+      window.dispatchEvent(new CustomEvent('quest-celebrate')); // 지도 캐릭터 축하 점프
+    }
   }
 
   /* 사진 찍고 어떤 동물인지 고르기 */
@@ -245,6 +252,7 @@ export function initQuestUI(quests, opts = {}) {
       ex.innerHTML = `${r.correct ? '🎉 <b>정답!</b>' : `🌱 <b>정답은 "${esc(r.answer)}"</b> — 틀려도 배우면 성공!`}<br>${esc(r.explain)}`
         + (r.newAnimals.length ? `<br>📔 <b>${aNames(r.newAnimals)}</b> 발견일지에 담겼어요!` : '');
       if (r.newAnimals.length) toast(`📔 ${aNames(r.newAnimals)} 발견!`);
+      if (r.correct) window.dispatchEvent(new CustomEvent('quest-celebrate')); // 지도 캐릭터 축하 점프
       renderHud();
     }));
     qWrap.classList.add('open');
@@ -347,13 +355,20 @@ export function initQuestUI(quests, opts = {}) {
       <div class="rcard"><b>${r.visit.n}번째 방문 · ${r.visit.date}</b><br>
       오늘 만난 동물 <b>${r.metCount}종</b> · 발견일지 총 <b>${r.dexTotal}종</b>
       ${r.newAnimals.length ? `<br>새로 만난 친구: ${newNames}` : ''}</div>
-      <div class="rcard"><b>${r.type.emoji} 오늘의 모험 유형: ${r.type.name}</b><br><span class="qsub">${esc(r.type.desc)}</span></div>
+      ${typeCardHTML(r)}
       ${r.quizzes.length ? `<div class="rcard"><b>🎓 오늘 배운 것</b>${r.quizzes.map((q) => `<div class="rquiz">${q.correct ? '⭕' : '🌱'} ${esc(q.q)}<br><span class="qsub">${esc(q.explain)}</span></div>`).join('')}</div>` : ''}
       ${r.notes.length ? `<div class="rcard"><b>📝 오늘의 기록</b>${r.notes.map((n) => `<div class="rquiz">${esc(n.text || '(사진)')}</div>`).join('')}</div>` : ''}
       <div class="rphotos"></div>
       <button class="qbtn" id="storyBtn" ${r.metCount || r.visit.done.length ? '' : 'disabled'}>🎬 오늘 탐험 끝! 스토리 보기</button>
       ${r.metCount || r.visit.done.length ? '' : '<p class="qsub">탐험이나 기록을 하나라도 남기면 스토리가 열려요!</p>'}
-      <button class="qbtn" id="shareRecap">📤 오늘의 리캡 공유하기</button>`;
+      <button class="qbtn ghost" id="clearTrack">🗑 오늘 위치 기록 지우기</button>
+      <p class="qsub">위치 기록은 이 휴대폰에만 저장되고 밖으로 나가지 않아요.</p>`;
+    /* 유형 캐릭터 아바타 (치비 렌더 — 실패 시 동물 이모지) */
+    body.querySelector('#tcAvatarSlot').appendChild(characterAvatarEl({
+      combo: r.type,
+      imgPromise: renderCharacterImage({ ...loadAvatar(), gear: r.type.id }),
+      size: 130,
+    }));
     const ph = body.querySelector('.rphotos');
     for (const id of r.photos.slice(0, 8)) {
       const url = await getPhoto(id);
@@ -361,11 +376,25 @@ export function initQuestUI(quests, opts = {}) {
     }
     $('storyBtn').addEventListener('click', () => { if (r.metCount || r.visit.done.length) openStory(quests); });
     $('shareRecap').addEventListener('click', async () => {
-      const text = `🌳 공원 원정대 ${r.visit.n}번째 탐험!\n오늘 만난 동물 ${r.metCount}종, 발견일지 ${r.dexTotal}종 달성\n나의 모험 유형: ${r.type.emoji} ${r.type.name}\n${location.origin}`;
+      /* 공유엔 유형·거리·탐험 결과만 — 정확한 이동 경로는 포함하지 않음 */
+      const km = r.typeResult?.metrics?.hasTrack ? ` · ${(r.typeResult.metrics.distM / 1000).toFixed(1)}km 탐험` : '';
+      const text = `🌳 공원 원정대 ${r.visit.n}번째 탐험!\n오늘 만난 동물 ${r.metCount}종, 발견일지 ${r.dexTotal}종${km}\n나의 탐험 유형: ${r.type.animalEmoji} ${r.type.koreanName}\n${location.origin}`;
       try {
         if (navigator.share) await navigator.share({ text });
         else { await navigator.clipboard.writeText(text); toast('리캡을 복사했어요!'); }
       } catch (_) { /* 취소 */ }
+    });
+    const ct = $('clearTrack');
+    ct.addEventListener('click', () => {
+      if (ct.dataset.arm !== '1') { // 실수 방지 — 두 번 눌러 확정
+        ct.dataset.arm = '1';
+        ct.textContent = '🗑 정말 지울까요? 한 번 더 누르면 삭제돼요';
+        setTimeout(() => { ct.dataset.arm = ''; ct.textContent = '🗑 오늘 위치 기록 지우기'; }, 4000);
+        return;
+      }
+      clearToday();
+      toast('오늘의 위치 기록을 지웠어요');
+      renderRecap(body);
     });
   }
 

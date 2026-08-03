@@ -108,3 +108,11 @@ export function trackExitSpot() {
 export function trackToday() {
   return ensure();
 }
+
+/* 오늘 위치 기록 삭제 (개인정보 — 사용자가 직접 지울 수 있게) */
+export function clearToday() {
+  localStorage.removeItem(KEY);
+  t = null;
+  lastPos = null;
+  lastTs = 0;
+}

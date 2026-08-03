@@ -12,6 +12,7 @@ import { initQuestUI } from './questUI.js';
 import { createInterior } from './interior.js';
 import { initChat } from './chat.js';
 import { trackPosition, trackEnterSpot, trackExitSpot } from './track.js';
+import { createLocationTracker } from './location.js';
 
 /* global MAP — mapdata.js 전역 */
 const $ = (id) => document.getElementById(id);
@@ -79,17 +80,22 @@ const cone = new THREE.Mesh(
 cone.position.y = 0.2;
 meG.add(cone);
 
-let mePhase = 0, meLast = null, lastMoveTs = 0;
+let mePhase = 0, lastMoveTs = 0, meRun = false;
+let meTarget = null; // 시각 목표 좌표 — GPS는 렌더 루프에서 부드럽게 따라감(순간이동 방지)
 
-function setMe(x, z, accM) {
+/* 모든 위치 소스(GPS·데모·산책)의 합류점.
+   instant=true(데모·산책·첫 좌표)는 즉시 스냅, GPS 갱신은 frame()에서 lerp */
+function setMe(x, z, accM, { instant = true } = {}) {
   meG.visible = true;
-  meG.position.set(x, 0, z);
+  meTarget = [x, z];
+  if (instant) meG.position.set(x, 0, z);
   meAcc.scale.setScalar(Math.max(0.001, accM > 50 ? accM * M2U : 0.001));
   famApi.shareMyPos(x, z);
   quests.onPosition(x, z); // 지오펜스: 동물 우리 근접 시 탐험 활성
   trackPosition(x, z); // 오늘의 동선·이동거리·체류시간 기록 (리캡용, 기기에만 저장)
 }
-const myPos = () => (meG.visible ? [meG.position.x, meG.position.z] : null);
+/* 논리 위치는 렌더 보간과 무관하게 목표 좌표 기준 (가족 공유·입장 판정 지연 방지) */
+const myPos = () => (meG.visible ? (meTarget || [meG.position.x, meG.position.z]) : null);
 
 /* ─── 나침반 (폰이 바라보는 방향) ─── */
 function setHeadingCone(deg) {
@@ -126,68 +132,127 @@ async function enableCompass() {
 /* ─── GPS / 데모 모드 ─── */
 const locBtn = $('locBtn');
 const banner = $('banner');
+const bannerMsg = $('bannerMsg');
+const locStatus = $('locStatus');
 const demoTag = $('demoTag');
-let watching = null, demo = false, lastFix = null, deniedOnce = false;
+let demo = false, meLast = null, deniedOnce = false;
+let statusHideTm = 0;
 
-function onFix(pos) {
-  const { latitude: lat, longitude: lon, accuracy } = pos.coords;
-  const now = pos.timestamp;
-  if (lastFix) {
-    const dt = (now - lastFix.t) / 1000;
-    const dm = Math.hypot(lat - lastFix.lat, lon - lastFix.lon) * 111000;
-    if (dt > 0 && dm / dt > 10) return; // 10m/s 초과 점프 폐기
-  }
-  lastFix = { lat, lon, t: now };
-  const [x, z] = prj(lat, lon);
-  if (inPark(x, z)) {
-    banner.classList.remove('show');
-    setMe(x, z, accuracy);
-    if (meLast) {
-      const mdx = x - meLast[0], mdz = z - meLast[1];
-      if (Math.hypot(mdx, mdz) > 2) {
-        mePhase += Math.hypot(mdx, mdz) * 0.4;
-        lastMoveTs = Date.now();
-        meChibi.setPhase(mePhase);
-        meChibi.setHeading(Math.atan2(mdx, mdz));
-        setHeadingCone(Math.atan2(mdx, -mdz) * 180 / Math.PI);
-      }
+const OUT_MSG = '📍 지금은 공원 밖이에요.<br>공원에서 열면 내 위치가 표시돼요.';
+const NEAR_MSG = '🎉 공원에 거의 도착했어요!<br>조금만 더 가면 캐릭터가 나타나요.';
+const DENIED_MSG = '위치 권한이 꺼져 있어 캐릭터가 움직일 수 없어요.<br>브라우저 주소창의 자물쇠(또는 설정)에서 위치를 허용하면 다시 켤 수 있어요.';
+
+function showStatus(msg, autoHideMs = 0) {
+  clearTimeout(statusHideTm);
+  if (!msg) { locStatus.classList.remove('show'); return; }
+  locStatus.textContent = msg;
+  locStatus.classList.add('show');
+  if (autoHideMs) statusHideTm = setTimeout(() => locStatus.classList.remove('show'), autoHideMs);
+}
+
+/* GPS 좌표 수신(공원 안·필터/스무딩 통과분) — 캐릭터 이동·애니메이션 */
+function onTrackerFix(f) {
+  banner.classList.remove('show');
+  locBtn.classList.add('on');
+  setMe(f.x, f.z, f.accM, { instant: !meLast }); // 첫 좌표만 스냅, 이후엔 frame()에서 부드럽게
+  meRun = f.animState === 'run';
+  if (meLast && f.moved) {
+    const mdx = f.x - meLast[0], mdz = f.z - meLast[1];
+    if (Math.hypot(mdx, mdz) > 0.5) {
+      mePhase += Math.hypot(mdx, mdz) * (meRun ? 0.55 : 0.4);
+      lastMoveTs = Date.now();
+      meChibi.setPhase(mePhase, meRun); // 속도에 따라 walk/run 진폭
+      meChibi.setHeading(Math.atan2(mdx, mdz)); // 이동 방향으로 회전 (동→오른쪽, 서→왼쪽)
+      setHeadingCone(Math.atan2(mdx, -mdz) * 180 / Math.PI);
     }
-    meLast = [x, z];
-  } else {
-    banner.classList.add('show');
+  }
+  meLast = [f.x, f.z];
+}
+
+/* 추적 상태 → 어린이 친화 문구 */
+function onTrackerState(state, extra) {
+  if (state === 'requesting') {
+    showStatus('📡 캐릭터가 지금 있는 곳을 찾고 있어요…');
+  } else if (state === 'tracking') {
+    if (extra.lowAccuracy) showStatus('📡 위치를 조금 더 정확하게 찾는 중이에요. 잠시만 기다려주세요');
+    else showStatus('📍 캐릭터가 내 위치를 따라오고 있어요', 3000);
+  } else if (state === 'outsidePark') {
     meG.visible = false;
+    meLast = null;
+    showStatus('');
+    bannerMsg.innerHTML = extra.nearPark ? NEAR_MSG : OUT_MSG;
+    banner.classList.add('show');
+  } else if (state === 'denied') {
+    locBtn.classList.remove('on');
+    meG.visible = false;
+    showStatus('');
+    if (!deniedOnce) { toast('위치 권한 없이도 지도는 자유롭게 볼 수 있어요'); deniedOnce = true; }
+    bannerMsg.innerHTML = DENIED_MSG;
+    banner.classList.add('show');
+  } else if (state === 'timeout' || state === 'unavailable') {
+    showStatus('📡 위치를 찾지 못했어요. 하늘이 보이는 곳에서 다시 시도해 주세요', 5000);
+    if (state === 'unavailable') { locBtn.classList.remove('on'); meG.visible = false; }
+  } else if (state === 'idle') {
+    locBtn.classList.remove('on');
+    showStatus('');
   }
 }
 
-locBtn.addEventListener('click', () => {
+const tracker = createLocationTracker({
+  project: prj,
+  isInPark: inPark,
+  onFix: onTrackerFix,
+  onState: onTrackerState,
+});
+
+/* 위치 권한 사전 안내 — 브라우저 권한 창이 갑자기 뜨지 않게 자체 안내를 먼저 */
+const PERM_INTRO_KEY = 'quest.geo.intro.v1';
+async function geoPermGranted() {
+  try {
+    const st = await navigator.permissions.query({ name: 'geolocation' });
+    return st.state === 'granted';
+  } catch (_) { return false; } // 미지원 브라우저 — 안내를 먼저 보여줌
+}
+function startTracking() {
+  enableCompass(); // 사용자 제스처 시점에 나침반 권한도 함께
+  meLast = null;
+  tracker.start();
+}
+$('permStart').addEventListener('click', () => {
+  localStorage.setItem(PERM_INTRO_KEY, '1');
+  $('permWrap').classList.remove('open');
+  startTracking();
+});
+$('permLater').addEventListener('click', () => $('permWrap').classList.remove('open'));
+$('permBack').addEventListener('click', () => $('permWrap').classList.remove('open'));
+
+locBtn.addEventListener('click', async () => {
   if (demo) { exitDemo(); return; }
-  if (watching !== null) {
-    navigator.geolocation.clearWatch(watching);
-    watching = null;
-    locBtn.classList.remove('on');
+  if (tracker.active) {
+    tracker.stop();
     meG.visible = false;
+    meLast = null;
     return;
   }
   if (!('geolocation' in navigator)) { toast('이 기기는 위치를 지원하지 않아요'); return; }
-  enableCompass(); // 사용자 제스처 시점에 나침반 권한도 함께
-  watching = navigator.geolocation.watchPosition(
-    (pos) => { locBtn.classList.add('on'); onFix(pos); },
-    (err) => {
-      navigator.geolocation.clearWatch(watching);
-      watching = null;
-      locBtn.classList.remove('on');
-      if (err.code === err.PERMISSION_DENIED) {
-        if (!deniedOnce) { toast('위치 권한 없이도 지도는 자유롭게 볼 수 있어요'); deniedOnce = true; }
-        banner.classList.add('show');
-      } else {
-        toast('위치를 찾지 못했어요. 잠시 후 다시 시도해 주세요');
-      }
-    },
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 },
-  );
+  if (!localStorage.getItem(PERM_INTRO_KEY) && !(await geoPermGranted())) {
+    $('permWrap').classList.add('open');
+    return;
+  }
+  startTracking();
 });
 
+/* 백그라운드/화면 잠금 복귀 시 — 좌표가 오래 끊겼으면 추적 재시작 */
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) tracker.restartIfStale();
+});
+
+/* 네트워크 상태 — GPS와 별개로 구분 안내 (지도·탐험은 오프라인 캐시로 동작) */
+window.addEventListener('offline', () => toast('인터넷이 잠시 끊겼어요. 지도와 탐험 기록은 계속돼요'));
+window.addEventListener('online', () => toast('인터넷이 다시 연결됐어요'));
+
 $('demoBtn').addEventListener('click', () => {
+  if (tracker.active) tracker.stop(); // 시뮬레이션과 실제 GPS가 동시에 적용되지 않게
   demo = true;
   banner.classList.remove('show');
   demoTag.classList.add('show');
@@ -248,6 +313,7 @@ function posAt(s) {
 }
 
 let walking = false, walkS = 0, recording = false, distBeforeWalk = 0;
+let simSpeedMult = 1; // __sim.speed() — 산책 데모 배속 (개발·시연용)
 const walkVisited = new Set();
 
 function renderWalk() {
@@ -274,7 +340,7 @@ function startWalk(rec) {
   walkS = 0;
   walkVisited.clear();
   exitDemo();
-  if (watching !== null) { navigator.geolocation.clearWatch(watching); watching = null; locBtn.classList.remove('on'); }
+  if (tracker.active) tracker.stop();
   walkBtn.classList.add('on');
   walkBtn.textContent = '⏹';
   routeLine.visible = true;
@@ -307,6 +373,41 @@ window.__walk = { // 영상 캡처용 결정적 훅
   stop: stopWalk,
 };
 
+/* 개발·시연용 GPS 시뮬레이터 훅 (콘솔 전용 — __walk·__quests와 동일 계열)
+   acc(m): 정확도 값 조절 / teleport(lat,lon): 좌표 이동 / speed(n): 산책 배속 / outside(): 공원 밖 상태 테스트 */
+let simAccM = 0;
+window.__sim = {
+  source: () => (walking || demo ? 'simulation' : tracker.active ? 'gps' : 'none'),
+  acc(m) {
+    simAccM = m;
+    const p = myPos();
+    if (p) setMe(p[0], p[1], m);
+    return m;
+  },
+  teleport(lat, lon) {
+    if (tracker.active) tracker.stop();
+    if (!demo) { demo = true; demoTag.classList.add('show'); locBtn.classList.add('on'); }
+    const [x, z] = prj(lat, lon);
+    if (inPark(x, z, 20)) {
+      banner.classList.remove('show');
+      setMe(x, z, simAccM);
+      camCtl.target.set(x, 0, z);
+      camCtl.apply();
+    } else {
+      bannerMsg.innerHTML = OUT_MSG;
+      banner.classList.add('show');
+      meG.visible = false;
+    }
+    return [x, z];
+  },
+  speed(mult) { simSpeedMult = mult; return mult; },
+  outside() {
+    bannerMsg.innerHTML = OUT_MSG;
+    banner.classList.add('show');
+    meG.visible = false;
+  },
+};
+
 /* ─── 가족 공유 ─── */
 const famApi = initFamily({
   scene,
@@ -314,7 +415,7 @@ const famApi = initFamily({
   myPos,
   getName: () => avatarCfg.name || '',
   setName: (v) => { avatarCfg.name = v.slice(0, 8); saveAvatar(avatarCfg); },
-  getAv: () => ({ gender: avatarCfg.gender, dress: avatarCfg.dress, top: avatarCfg.top, bottom: avatarCfg.bottom }),
+  getAv: () => ({ gender: avatarCfg.gender, dress: avatarCfg.dress, top: avatarCfg.top, bottom: avatarCfg.bottom, gear: avatarCfg.gear }),
 });
 
 /* ─── 탐험 시스템 ─── */
@@ -389,6 +490,10 @@ initTutorial();
 $('sheetBack').addEventListener('click', () => $('sheetWrap').classList.remove('open'));
 $('dressBtn').addEventListener('click', () => { location.href = 'customize.html'; });
 
+/* 탐험 완료(퀴즈 정답·발견 완성 등) → 2초 축하 점프 (questUI가 발화) */
+let celebrateUntil = 0;
+window.addEventListener('quest-celebrate', () => { celebrateUntil = Date.now() + 2000; });
+
 /* ─── 메인 루프 ─── */
 let prevTs = 0;
 function frame(ts) {
@@ -397,7 +502,7 @@ function frame(ts) {
   prevTs = t;
 
   if (walking && !recording) {
-    walkS += dt * WALK_SPEED;
+    walkS += dt * WALK_SPEED * simSpeedMult;
     renderWalk();
     if (walkS >= ROUTE_LEN) { stopWalk(); toast('🎉 산책 완주! 랜드마크를 모두 지나왔어요'); }
   }
@@ -410,7 +515,16 @@ function frame(ts) {
   pulse.scale.setScalar(6 + ph * 12);
   pulse.material.opacity = 0.7 * (1 - ph);
 
-  if (!walking && meG.visible && Date.now() - lastMoveTs > 400) meChibi.idle(t);
+  // GPS 좌표 갱신 시 캐릭터가 순간이동하지 않게 목표 좌표로 미끄러지듯 이동
+  // (데모 탭·산책은 setMe가 즉시 스냅하므로 여기선 보정량 0)
+  if (meG.visible && meTarget) {
+    const k = 1 - Math.exp(-8 * dt);
+    meG.position.x += (meTarget[0] - meG.position.x) * k;
+    meG.position.z += (meTarget[1] - meG.position.z) * k;
+  }
+
+  if (!walking && meG.visible && Date.now() < celebrateUntil) meChibi.celebrate(t); // 탐험 완료 축하 점프
+  else if (!walking && meG.visible && Date.now() - lastMoveTs > 400) meChibi.idle(t);
   if (meG.visible) { // 멀리서도 내 캐릭터가 보이게 거리 기반 확대
     meG.scale.setScalar(Math.min(2.2, Math.max(1, camera.position.distanceTo(meG.position) / 280)));
   }

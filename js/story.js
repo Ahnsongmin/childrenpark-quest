@@ -4,14 +4,15 @@
         ④총평(최다 체류 장소) ⑤모험 유형(캐릭터 장비 성장)
    화면 표시와 공유 이미지는 같은 1080x1920 캔버스 하나로 렌더(WYSIWYG) */
 /* global MAP */
-import * as THREE from 'three';
-import { ANIMALS, SPOTS, DWELL_INFO, EXPLORER_TYPES } from './quests-data.js';
+import { ANIMALS, SPOTS, DWELL_INFO } from './quests-data.js';
 import { LANDMARKS } from './config.js';
 import { getPhoto } from './store.js';
 import { toast } from './ui.js';
 import { trackToday, spotPosOf } from './track.js';
 import { paintMap } from './ground.js';
-import { buildChibi, loadAvatar, saveAvatar } from './character.js';
+import { loadAvatar, saveAvatar } from './character.js';
+import { shade, iEyo } from './explorer-types.mjs';
+import { renderCharacterImage } from './type-render.js';
 import { M2U } from './geo.js';
 
 const $ = (id) => document.getElementById(id);
@@ -143,8 +144,8 @@ async function buildSlides(quests) {
     });
   }
 
-  /* ⑤ 모험 유형 + 캐릭터 성장 */
-  const type = r.type;
+  /* ⑤ 탐험 유형(16유형) + 캐릭터 성장 */
+  const type = r.type; // 16유형 조합 (koreanName·primaryColor·animal·props …)
   const lv = quests.recordType(type.id);
   const av = loadAvatar();
   let gearNew = false, offerChoice = false;
@@ -158,7 +159,7 @@ async function buildSlides(quests) {
   } else {
     gearNew = lv === 1;
   }
-  out.push({ kind: 'type', n: v.n, type, lv, gearNew, offerChoice, dexTotal: r.dexTotal });
+  out.push({ kind: 'type', n: v.n, type, typeResult: r.typeResult, lv, gearNew, offerChoice, dexTotal: r.dexTotal });
 
   return out;
 }
@@ -674,78 +675,80 @@ function renderBest(ctx, s) {
   watermark(ctx, s.n);
 }
 
-/* ── ⑤ 유형 + 캐릭터 성장 ── */
-function renderType(ctx, s, chibiImg) {
-  bgGradient(ctx, '#6B4423', '#2A1B12');
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = AMBER; ctx.font = `800 44px ${FONT}`;
-  ctx.fillText('오늘 당신의 탐험 유형', W / 2, 290);
-  ctx.fillStyle = CREAM; ctx.font = `800 96px ${FONT}`;
-  ctx.fillText(`${s.type.emoji} ${s.type.name}`, W / 2, 420);
-  ctx.font = `600 44px ${FONT}`; ctx.fillStyle = 'rgba(251,246,233,.75)';
-  ctx.fillText(s.type.desc, W / 2, 500);
-
-  /* 캐릭터 (유형 장비 착용) */
-  if (chibiImg) {
-    const cw = 560, chh = 746;
-    ctx.drawImage(chibiImg, (W - cw) / 2, 560, cw, chh);
-  } else {
-    ctx.font = `340px ${FONT}`;
-    ctx.fillText(s.type.emoji, W / 2, 1050);
-  }
-
-  /* 레벨 + 장비 획득 */
-  ctx.font = `800 52px ${FONT}`;
-  const lvText = `${s.type.name} Lv.${s.lv}`;
-  const lw = ctx.measureText(lvText).width + 110;
-  ctx.fillStyle = 'rgba(0,0,0,.3)';
-  rrect(ctx, (W - lw) / 2, 1360, lw, 100, 50); ctx.fill();
-  ctx.fillStyle = CREAM;
-  ctx.fillText(lvText, W / 2, 1430);
-
-  if (s.gearNew) {
-    ctx.font = `800 50px ${FONT}`;
-    const gt = `${s.type.gearEmoji} ${s.type.gear} 획득!`;
-    const gw = ctx.measureText(gt).width + 120;
-    ctx.fillStyle = 'rgba(242,160,61,.18)';
-    rrect(ctx, (W - gw) / 2, 1500, gw, 104, 52); ctx.fill();
-    ctx.strokeStyle = AMBER; ctx.lineWidth = 4; ctx.stroke();
-    ctx.fillStyle = AMBER;
-    ctx.fillText(gt, W / 2, 1572);
-  }
-  ctx.font = `600 38px ${FONT}`; ctx.fillStyle = 'rgba(251,246,233,.6)';
-  ctx.fillText(`이 탐험을 많이 할수록 캐릭터가 ${s.type.name}로 자라나요`, W / 2, 1690);
-  ctx.fillText(`📔 발견일지 총 ${s.dexTotal}종 · 다음 탐험에서 또 만나! 👋`, W / 2, 1760);
-  watermark(ctx, s.n);
+/* 가운데 정렬 pill 한 개 그리기 → 그린 폭 반환 */
+function pillAt(ctx, text, cx, y, bg, fg, stroke) {
+  const w = ctx.measureText(text).width + 90;
+  ctx.fillStyle = bg;
+  rrect(ctx, cx - w / 2, y - 62, w, 92, 46); ctx.fill();
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 3; ctx.stroke(); }
+  ctx.fillStyle = fg;
+  ctx.fillText(text, cx, y);
+  return w;
 }
 
-/* 캐릭터 이미지 — 오프스크린 three.js 렌더 (유형 장비 착용 모습) */
-let chibiCache = { key: '', img: null };
-async function chibiImage(gearId) {
-  const av = loadAvatar();
-  const key = JSON.stringify([av.gender, av.dress, av.top, av.bottom, gearId]);
-  if (chibiCache.key === key && chibiCache.img) return chibiCache.img;
-  try {
-    const c = document.createElement('canvas');
-    c.width = 540; c.height = 720;
-    const rend = new THREE.WebGLRenderer({ canvas: c, antialias: true, alpha: true });
-    const cam = new THREE.PerspectiveCamera(38, 540 / 720, 0.5, 200);
-    cam.position.set(0, 9.5, 27);
-    cam.lookAt(0, 6.4, 0);
-    const sc = new THREE.Scene();
-    sc.add(new THREE.HemisphereLight('#eaf6ff', '#9fcf8a', 1.2));
-    const sun = new THREE.DirectionalLight('#fff6e0', 1.5);
-    sun.position.set(6, 12, 8);
-    sc.add(sun);
-    const ch = buildChibi({ ...av, gear: gearId });
-    ch.group.rotation.y = 0.3;
-    sc.add(ch.group);
-    rend.render(sc, cam);
-    const img = await loadImg(c.toDataURL('image/png'));
-    rend.dispose();
-    chibiCache = { key, img };
-    return img;
-  } catch (_) { return null; } // WebGL 실패 시 이모지 폴백
+/* ── ⑤ 탐험 유형(16유형) + 캐릭터 성장 ── */
+function renderType(ctx, s, chibiImg) {
+  /* 유형 고유색 배경 + 가독성 스크림 */
+  bgGradient(ctx, s.type.primaryColor, shade(s.type.primaryColor, 0.62));
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = `800 44px ${FONT}`;
+  ctx.fillText('오늘 당신의 탐험 유형', W / 2, 250);
+  ctx.fillStyle = '#fff'; ctx.font = `800 92px ${FONT}`;
+  ctx.fillText(`${s.type.animalEmoji} ${s.type.koreanName}`, W / 2, 380);
+  ctx.font = `700 48px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.9)';
+  ctx.fillText(`당신은 ${s.type.koreanName}${iEyo(s.type.koreanName)}!`, W / 2, 452);
+  ctx.font = `600 42px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.85)';
+  wrapText(ctx, s.type.description, W - 180, 2).forEach((l, i) => ctx.fillText(l, W / 2, 530 + i * 56));
+
+  /* 캐릭터 (유형 복장 착용 — 동물 후드·소품) */
+  if (chibiImg) {
+    const cw = 495, chh = 660;
+    ctx.drawImage(chibiImg, (W - cw) / 2, 620, cw, chh);
+  } else {
+    ctx.font = `300px ${FONT}`;
+    ctx.fillText(s.type.animalEmoji, W / 2, 1050);
+  }
+
+  /* 이동거리·체류 분석 + 주로 한 탐험 */
+  const m = s.typeResult?.metrics;
+  ctx.font = `700 42px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.92)';
+  if (s.typeResult?.fallback) {
+    ctx.fillText('아직 기록이 적어요 — 탐험을 시작하면 진짜 유형이 나와요!', W / 2, 1360);
+  } else if (m && m.hasTrack) {
+    ctx.fillText(`🚶 ${(m.distM / 1000).toFixed(1)}km 걸었고 · 한 곳에 평균 ${Math.max(1, Math.round(m.avgStaySec / 60))}분 머물렀어요`, W / 2, 1360);
+  } else {
+    ctx.font = `600 38px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.7)';
+    ctx.fillText('📍 위치를 켜면 다음엔 이동거리·체류시간 분석도 담아드려요', W / 2, 1360);
+  }
+  const mainCnt = m ? m.counts[s.type.missionCategory] || 0 : 0;
+  if (mainCnt > 0) {
+    ctx.font = `700 42px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.92)';
+    ctx.fillText(`주로 한 탐험: ${s.type.missionLabel} ${mainCnt}번`, W / 2, 1430);
+  }
+
+  /* 성격 키워드 pill */
+  ctx.font = `700 40px ${FONT}`;
+  const kws = s.type.personalityKeywords;
+  const widths = kws.map((k) => ctx.measureText(`#${k}`).width + 90);
+  const totalW = widths.reduce((a, b) => a + b, 0) + (kws.length - 1) * 20;
+  let kx = (W - totalW) / 2;
+  kws.forEach((k, i) => {
+    pillAt(ctx, `#${k}`, kx + widths[i] / 2, 1520, 'rgba(255,255,255,.16)', '#fff');
+    kx += widths[i] + 20;
+  });
+
+  /* 레벨 + 소품 획득 */
+  ctx.font = `800 48px ${FONT}`;
+  pillAt(ctx, `${s.type.missionTitle} Lv.${s.lv}`, W / 2, 1625, 'rgba(0,0,0,.32)', '#fff');
+  if (s.gearNew) {
+    ctx.font = `800 46px ${FONT}`;
+    pillAt(ctx, `${s.type.propEmoji} ${s.type.props.join('·')} 획득!`, W / 2, 1730, 'rgba(255,255,255,.2)', '#fff', 'rgba(255,255,255,.7)');
+  }
+  ctx.font = `600 36px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.fillText(`📔 발견일지 총 ${s.dexTotal}종 · 다음 탐험에서 또 만나! 👋`, W / 2, s.gearNew ? 1810 : 1740);
+  watermark(ctx, s.n);
 }
 
 /* ── 렌더 디스패치 ── */
@@ -762,7 +765,7 @@ async function renderSlide(i) {
   /* 유형 변경 선택 버튼 표시/숨김 */
   const choice = $('storyChoice');
   if (s.kind === 'type' && s.offerChoice) {
-    $('choiceNew').textContent = `✨ ${s.type.gearEmoji} ${s.type.gear} 차림으로 바꾸기`;
+    $('choiceNew').textContent = `✨ ${s.type.propEmoji} ${s.type.koreanName} 차림으로 바꾸기`;
     choice.style.display = 'flex';
   } else choice.style.display = 'none';
 
@@ -824,7 +827,7 @@ async function renderSlide(i) {
   } else if (s.kind === 'type') {
     renderType(ctx, s, null);
     const gearId = s.offerChoice ? loadAvatar().gear : s.type.id;
-    const img = await chibiImage(gearId);
+    const img = await renderCharacterImage({ ...loadAvatar(), gear: gearId });
     if (seq !== renderSeq) return;
     ctx.clearRect(0, 0, W, H);
     renderType(ctx, s, img);
@@ -901,7 +904,7 @@ export async function openStory(quests) {
       s.offerChoice = false;
       s.gearNew = true;
       window.dispatchEvent(new CustomEvent('avatar-changed'));
-      toast(`${s.type.gearEmoji} ${s.type.gear}을(를) 착용했어요!`);
+      toast(`${s.type.propEmoji} ${s.type.koreanName} 차림을 착용했어요!`);
       renderSlide(idx);
     });
     const hit = $('storyHit');

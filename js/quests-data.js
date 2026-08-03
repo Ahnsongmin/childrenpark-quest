@@ -448,12 +448,4 @@ export const MEDALS = [
   { need: 15, name: '리니워니 친구', emoji: '🦊' },
 ];
 
-/* 모험 유형 — 오늘의 기록으로 계산하는 재미 요소 (규칙 기반)
-   gear: 유형별 캐릭터 장비 — 리캡에서 획득하면 지도 아바타에도 착용됨 */
-export const EXPLORER_TYPES = [
-  { id: 'observer', name: '조용한 관찰가', emoji: '🔍', desc: '오래 지켜보고 기록하는 것을 좋아해요.', gear: '돋보기', gearEmoji: '🔎' },
-  { id: 'collector', name: '장면 수집가', emoji: '📷', desc: '멋진 순간을 사진으로 모으는 걸 좋아해요.', gear: '카메라', gearEmoji: '📷' },
-  { id: 'scholar', name: '꼬마 박사', emoji: '🎓', desc: '동물 지식 퀴즈에 강한 똑똑한 탐험가!', gear: '학사모', gearEmoji: '🎓' },
-  { id: 'wanderer', name: '느긋한 산책가', emoji: '🍃', desc: '한적한 곳에서 풍경을 즐기는 탐험가예요.', gear: '밀짚모자', gearEmoji: '👒' },
-  { id: 'adventurer', name: '씩씩한 개척가', emoji: '🧭', desc: '공원 구석구석 새로운 곳을 찾아다녀요.', gear: '나침반', gearEmoji: '🧭' },
-];
+/* 탐험 유형은 js/explorer-types.mjs로 이동 (이동 4종 × 성향 4종 = 16유형, 32캐릭터) */

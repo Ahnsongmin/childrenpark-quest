@@ -1,15 +1,22 @@
 /* 탐험 로직: 일일 배정(시드 기반)·지오펜스·도감·기록·리캡·성장·메달
    "AI 배정"의 시제품 구현 — 날짜·나이·방문 회차·이전 기록으로 결정적으로 선택.
    우선순위(팀 기획): ①안 가본 우리 ②가봤지만 탐험 미완/퀴즈 오답 ③완료한 곳 */
-import { SPOTS, ANIMALS, QUIZZES, DISCOVERIES, MEDALS, EXPLORER_TYPES } from './quests-data.js';
+import { SPOTS, ANIMALS, QUIZZES, DISCOVERIES, MEDALS } from './quests-data.js';
 import { LANDMARKS } from './config.js';
-import { prj } from './geo.js';
+import { prj, M2U } from './geo.js';
 import { loadJSON, saveJSON } from './store.js';
-import { M2U } from './geo.js';
+import { trackToday } from './track.js';
+import {
+  LOCATION_CONFIG, spotTransition,
+  isTrackReliable, classifyMovementFromTrack, classifyMovementFromActivity, classifyMission, avgStaySec,
+} from './geomath.mjs';
+import { getCombo, missionIdOfTypeId, LEGACY_TYPE_MAP } from './explorer-types.mjs';
 
 const P_KEY = 'quest.profile.v1';
 const L_KEY = 'quest.log.v1';
-const RADIUS = 10 * M2U; // 지오펜스 반경 10m (GPS 오차 3~10m 감안한 값 — 2026-07-29 사용자 지정)
+/* 지오펜스 히스테리시스: 입장 10m(GPS 오차 감안 — 2026-07-29 사용자 지정) / 퇴장 20m — 경계에서 입퇴장 반복 방지 */
+const ENTER_U = LOCATION_CONFIG.spotEnterMeters * M2U;
+const EXIT_U = LOCATION_CONFIG.spotExitMeters * M2U;
 
 const todayKey = () => {
   const d = new Date();
@@ -43,6 +50,15 @@ export function initQuests({ onNear } = {}) {
     profile.seed = Math.random().toString(36).slice(2, 10);
     saveJSON(P_KEY, profile);
   }
+  /* 구 5유형 id가 저장된 기록 마이그레이션 — 성향 레벨 누적은 계승, 이동축 정보는 없으므로 폐기 */
+  if (profile.types) {
+    let dirty = false;
+    for (const [d, val] of Object.entries(profile.types)) {
+      if (LEGACY_TYPE_MAP[val]) { profile.types[d] = `legacy-${LEGACY_TYPE_MAP[val]}`; dirty = true; }
+    }
+    if (dirty) saveJSON(P_KEY, profile);
+  }
+
   const log = loadJSON(L_KEY, { visits: [], dex: {} });
   const save = () => saveJSON(L_KEY, log);
 
@@ -89,7 +105,11 @@ export function initQuests({ onNear } = {}) {
   const pickIdx = (spotId, len) => (strSeed(todayKey() + spotId) + ensureVisit().n) % len;
 
   let near = null;
-  const announced = new Set();
+  const lastAnnounced = new Map(); // spotId → 마지막 알림 시각 (쿨다운)
+  const spotList = SPOTS.map((s) => {
+    const [x, z] = spotPos.get(s.id);
+    return { id: s.id, x, z };
+  });
 
   const api = {
     profile,
@@ -119,17 +139,14 @@ export function initQuests({ onNear } = {}) {
     },
 
     onPosition(x, z) {
-      let best = null, bestD = RADIUS;
-      for (const s of SPOTS) {
-        const [sx, sz] = spotPos.get(s.id);
-        const d = Math.hypot(sx - x, sz - z);
-        if (d < bestD) { best = s; bestD = d; }
-      }
-      if ((best && best.id) !== (near && near.id)) {
-        near = best;
-        const fresh = best && api.isAssigned(best.id) && !announced.has(best.id) && !api.spotDone(best.id);
-        if (fresh) announced.add(best.id);
-        if (onNear) onNear(best, fresh);
+      const nextId = spotTransition(near && near.id, x, z, spotList, ENTER_U, EXIT_U);
+      if (nextId !== (near && near.id)) {
+        near = nextId ? spotById.get(nextId) : null;
+        const now = Date.now();
+        const fresh = !!near && api.isAssigned(near.id) && !api.spotDone(near.id)
+          && now - (lastAnnounced.get(near.id) || 0) > LOCATION_CONFIG.spotNotifyCooldownMs;
+        if (fresh) lastAnnounced.set(near.id, now);
+        if (onNear) onNear(near, fresh);
       }
     },
 
@@ -268,37 +285,56 @@ export function initQuests({ onNear } = {}) {
         .map((d) => ({ ...d, date: v.date, spotName: d.spot ? spotById.get(d.spot).name : '' })));
     },
 
+    /* 오늘의 16유형 판정 — 이동축(이동거리×평균 체류, 트랙 기반) × 탐험축(활동 종류 카운트) */
+    computeExplorerType(visit) {
+      const v = visit || ensureVisit();
+      const tk = trackToday();
+      const counts = { observe: 0, quiz: 0, dwell: 0, discovery: 0, note: 0, photo: 0 };
+      for (const d of v.done) if (counts[d.type] !== undefined) counts[d.type]++;
+      const spotCount = new Set(v.done.filter((d) => d.spot).map((d) => d.spot)).size;
+      const trackOk = isTrackReliable(tk);
+      const noData = !v.done.length && !trackOk; // 활동도 위치 기록도 없음 → 기본 유형 + 안내
+      const movementId = trackOk ? classifyMovementFromTrack(tk)
+        : noData ? 'curious'
+          : classifyMovementFromActivity({ spotCount, actCount: v.done.length });
+      const missionId = noData ? 'detective' : classifyMission(counts);
+      return {
+        combo: getCombo(movementId, missionId),
+        metrics: {
+          distM: tk.distM,
+          avgStaySec: avgStaySec(tk.staySec),
+          placeCount: Object.keys(tk.staySec).length || spotCount,
+          hasTrack: trackOk,
+          counts,
+        },
+        fallback: noData,
+      };
+    },
+
     recap(visit) {
       const v = visit || ensureVisit();
       const newAnimals = Object.entries(log.dex).filter(([, m]) => m.first === v.date).map(([id]) => id);
-      const quizzes = v.done.filter((d) => d.type === 'quiz');
-      const noteCnt = v.done.filter((d) => ['observe', 'dwell', 'note'].includes(d.type)).length;
-      const photoCnt = v.done.filter((d) => d.photo).length + v.disc.length;
-      const scores = {
-        observer: noteCnt,
-        collector: photoCnt,
-        scholar: quizzes.filter((q) => q.correct).length,
-        wanderer: v.done.filter((d) => d.type === 'dwell').length * 2,
-        adventurer: newAnimals.length * 0.6,
-      };
-      const typeId = Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+      const typeResult = api.computeExplorerType(v);
       return {
         visit: v,
         metCount: v.met.length,
         newAnimals,
-        quizzes,
+        quizzes: v.done.filter((d) => d.type === 'quiz'),
         notes: v.done.filter((d) => ['observe', 'dwell', 'note'].includes(d.type)),
         photos: v.done.filter((d) => d.photo).map((d) => d.photo),
-        type: EXPLORER_TYPES.find((t) => t.id === typeId),
+        type: typeResult.combo, // 16유형 조합 (koreanName·primaryColor·animal·props …)
+        typeResult,
         dexTotal: Object.keys(log.dex).length,
       };
     },
-    /* 리캡에서 오늘의 유형을 확정 기록 — 유형별 누적 횟수 = 레벨 (캐릭터 성장) */
+    /* 리캡에서 오늘의 유형을 확정 기록 — 같은 탐험 성향 누적 횟수 = 레벨 (캐릭터 성장)
+       이동축은 날마다 바뀔 수 있으므로 레벨은 성향(소품) 기준으로 잇는다 */
     recordType(typeId) {
       if (!profile.types) profile.types = {};
       profile.types[todayKey()] = typeId; // 하루 1개, 마지막 계산 기준
       saveJSON(P_KEY, profile);
-      return Object.values(profile.types).filter((t) => t === typeId).length;
+      const missionId = missionIdOfTypeId(typeId);
+      return Object.values(profile.types).filter((t) => missionIdOfTypeId(t) === missionId).length;
     },
     growth() {
       return log.visits.map((v) => {
