@@ -166,8 +166,8 @@
     position: relative; margin: 0 18px 14px; background: #fff; border-radius: 18px;
     padding: 18px 18px 16px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
   }
-  #tuto .bubble::after {
-    content: ''; position: absolute; left: 52px; bottom: -12px;
+  #tuto .bubble::after { /* 꼬리 — 오른쪽의 리니워니를 가리킴 */
+    content: ''; position: absolute; right: 52px; bottom: -12px;
     border: 12px solid transparent; border-top-color: #fff; border-bottom: 0;
   }
   #tutoText { font-size: 14.5px; line-height: 1.65; color: #334; }
@@ -178,8 +178,11 @@
     background: #f5b83d; color: #4a3800; font-size: 14px; font-weight: 800;
     padding: 11px; cursor: pointer;
   }
-  #tuto .mascotRow { display: flex; align-items: flex-end; padding: 0 18px; }
-  #tutoImg { height: 132px; filter: drop-shadow(0 6px 12px rgba(0,0,0,.35)); } /* 투명 배경 — 캐릭터만 */
+  #tuto .mascotRow { display: flex; align-items: flex-end; justify-content: flex-end; padding: 0 18px; }
+  #tutoImg { /* 투명 배경 — 캐릭터만, 화면 높이의 약 2/5 크기로 오른쪽에 */
+    height: 40dvh; max-height: 400px; max-width: 88%; object-fit: contain; object-position: right bottom;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,.35));
+  }
   #tuto .tutoBar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 18px calc(16px + env(safe-area-inset-bottom));
