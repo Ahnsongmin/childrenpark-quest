@@ -111,6 +111,13 @@
 </style>
 </head>
 <body>
+<script>
+/* 지도 화면 '가' 버튼의 글씨 크기 설정을 이 페이지에도 반영 */
+(function () {
+  var v = parseInt(localStorage.getItem('quest.fontscale.v1'), 10) || 0;
+  if (v) document.documentElement.style.zoom = v === 1 ? 1.15 : 1.32;
+})();
+</script>
 <div id="page">
   <header>
     <h1>🧢 나의 공원 탐험 유형</h1>
