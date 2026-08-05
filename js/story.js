@@ -15,6 +15,7 @@ import { shade, iEyo, euRo } from './explorer-types.mjs';
 import { unlockedSet } from './unlock.js';
 import { renderCharacterImage } from './type-render.js';
 import { M2U } from './geo.js';
+import { easeOut, phase, countP, upInt, upFix, countDur, riseP, COUNT_DELAY, COUNT_DUR, COUNT_GAP } from './anim.mjs';
 
 const $ = (id) => document.getElementById(id);
 const W = 1080, H = 1920;
@@ -263,9 +264,7 @@ function eyebrow(ctx, text, y, color = FERN) {
   ctx.fillText(text, 70, y);
 }
 
-const easeOut = (p) => 1 - Math.pow(1 - p, 3);
-/* delay~delay+len 구간 count-up 진행률 */
-const phase = (p, delay, len) => easeOut(Math.min(1, Math.max(0, (p - delay) / len)));
+/* 등장 애니메이션 타이밍은 js/anim.mjs (순수 모듈 — 단위 테스트 대상) */
 
 /* 이미지 로드 (실패 시 null) */
 function loadImg(src) {
@@ -431,7 +430,7 @@ function renderStats(ctx, s, p, faces) {
 }
 
 /* ── ② 탐험 요약 ── */
-function renderCount(ctx, s, imgs) {
+function renderCount(ctx, s, imgs, t = Infinity) {
   bgGradient(ctx, '#2e6b34', '#164a22');
 
   /* 배경 = 오늘 만난 동물들의 사진 모자이크. 사진이 없으면 그라데이션만(레이아웃 동일) */
@@ -463,27 +462,36 @@ function renderCount(ctx, s, imgs) {
   ctx.font = `700 60px ${FONT}`;
   ctx.fillText('오늘 총', W / 2, 660);
   ctx.fillStyle = AMBER; ctx.font = `800 300px ${FONT}`;
-  ctx.fillText(String(s.total), W / 2, 980);
+  ctx.fillText(String(upInt(s.total, t)), W / 2, 980); // 0에서 올라온다
   ctx.fillStyle = '#fff'; ctx.font = `700 60px ${FONT}`;
   ctx.fillText('개의 탐험을 완료했어요!', W / 2, 1110);
 
+  /* 종류별 pill — 숫자가 다 오른 뒤 하나씩 떠오른다 */
   const labels = [['quiz', '🎓 교육'], ['observe', '🔍 관찰'], ['dwell', '🍃 쉬어가기'], ['discovery', '✨ 발견']];
   const pills = labels.filter(([k]) => s.counts[k] > 0).map(([k, l]) => `${l} ${s.counts[k]}`);
   ctx.font = `700 42px ${FONT}`;
   let y = 1280;
-  for (const text of pills) {
+  pills.forEach((text, i) => {
+    const r = riseP(t, COUNT_DELAY + COUNT_DUR + i * 180);
+    if (r <= 0) { y += 112; return; }
+    const dy = (1 - r) * 20;
+    ctx.globalAlpha = r;
     const w = ctx.measureText(text).width + 90;
     ctx.fillStyle = 'rgba(255,255,255,.14)';
-    rrect(ctx, (W - w) / 2, y - 58, w, 84, 42); ctx.fill();
+    rrect(ctx, (W - w) / 2, y - 58 + dy, w, 84, 42); ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#fff';
-    ctx.fillText(text, W / 2, y);
+    ctx.fillText(text, W / 2, y + dy);
+    ctx.globalAlpha = 1;
     y += 112;
-  }
+  });
   /* 배경이 무엇인지 한 줄로 알려준다 — 그래야 모자이크가 장식이 아니라 기록으로 읽힌다 */
   if (s.animals?.length) {
+    const r = riseP(t, COUNT_DELAY + COUNT_DUR + pills.length * 180);
+    ctx.globalAlpha = r;
     ctx.font = `600 40px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.72)';
-    ctx.fillText(`🐾 오늘 만난 친구 ${s.animals.length}종`, W / 2, Math.min(y + 30, H - 220));
+    ctx.fillText(`🐾 오늘 만난 친구 ${s.animals.length}종`, W / 2, Math.min(y + 30, H - 220) + (1 - r) * 20);
+    ctx.globalAlpha = 1;
   }
   watermark(ctx, s.n);
 }
@@ -526,17 +534,22 @@ function renderQuizWrong(ctx, s, img) {
 }
 
 /* ── ③-1' 교육 (정답 묶음) ── */
-function renderQuizRight(ctx, s) {
+function renderQuizRight(ctx, s, t = Infinity) {
   bgGradient(ctx, '#1A4A5C', '#0E2A2E');
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `800 40px ${FONT}`; ctx.fillStyle = SKY;
   ctx.fillText('🎓 교육 탐험', W / 2, 480);
   ctx.fillStyle = CREAM; ctx.font = `800 100px ${FONT}`;
-  ctx.fillText(s.right === s.total ? `${s.total}문제 모두 정답!` : `${s.right}문제 정답!`, W / 2, 640);
+  const right = upInt(s.right, t, 0);
+  ctx.fillText(s.right === s.total && countP(t, 0) >= 1 ? `${s.total}문제 모두 정답!` : `${right}문제 정답!`, W / 2, 640);
   ctx.font = `600 46px ${FONT}`; ctx.fillStyle = 'rgba(251,246,233,.7)';
-  ctx.fillText(`오늘 퀴즈 ${s.total}문제 · 정답률 ${Math.round(s.right / s.total * 100)}%`, W / 2, 740);
+  const pct = upInt(Math.round(s.right / s.total * 100), t, 1);
+  ctx.fillText(`오늘 퀴즈 ${s.total}문제 · 정답률 ${pct}%`, W / 2, 740);
 
-  /* 대표 문제 카드 */
+  /* 대표 문제 카드 — 숫자가 오른 뒤 떠오른다 */
+  const cardR = riseP(t, COUNT_DELAY + COUNT_GAP + COUNT_DUR);
+  if (cardR <= 0) { watermark(ctx, s.n); return; }
+  ctx.globalAlpha = cardR;
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(0,0,0,.28)';
   ctx.font = `700 46px ${FONT}`;
@@ -552,6 +565,7 @@ function renderQuizRight(ctx, s) {
   qLines.forEach((l, i) => ctx.fillText(l, 120, 1035 + i * 64));
   ctx.fillStyle = 'rgba(251,246,233,.78)'; ctx.font = `600 42px ${FONT}`;
   eLines.forEach((l, i) => ctx.fillText(l, 120, 1035 + qLines.length * 64 + 30 + i * 58));
+  ctx.globalAlpha = 1;
   watermark(ctx, s.n);
 }
 
@@ -739,7 +753,7 @@ function renderObserve(ctx, s, img) {
 }
 
 /* ── ④ 총평 ── */
-function renderBest(ctx, s) {
+function renderBest(ctx, s, t = Infinity) {
   bgGradient(ctx, '#5A2A22', '#1F1210');
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = CORAL; ctx.font = `800 44px ${FONT}`;
@@ -751,18 +765,20 @@ function renderBest(ctx, s) {
   ctx.fillStyle = AMBER;
   ctx.textAlign = 'left';
   ctx.font = `800 160px ${FONT}`;
+  const mins = upInt(s.minutes, t, 0);
+  /* 자리수가 늘어도 '분'이 안 흔들리도록 최종 숫자 폭으로 자리를 잡는다 */
   const numW = ctx.measureText(String(s.minutes)).width;
   const x0 = (W - numW - 90) / 2;
-  ctx.fillText(String(s.minutes), x0, 1200);
+  ctx.fillText(String(mins), x0, 1200);
   ctx.font = `800 70px ${FONT}`;
   ctx.fillText('분', x0 + numW + 14, 1200);
   ctx.textAlign = 'center';
   ctx.fillStyle = CREAM; ctx.font = `700 62px ${FONT}`;
   if (s.pctTop) { // 시제품 규칙 기반 추정 — 본사업 시 실방문 통계로 대체
-    ctx.fillText(`여기서 ${s.minutes}분을 보냈고`, W / 2, 1400);
+    ctx.fillText(`여기서 ${mins}분을 보냈고`, W / 2, 1400);
     ctx.fillText('이곳을 찾은 탐험가 중', W / 2, 1490);
     ctx.fillStyle = AMBER;
-    ctx.fillText(`상위 ${s.pctTop}%예요!`, W / 2, 1590);
+    ctx.fillText(`상위 ${upInt(s.pctTop, t, 1)}%예요!`, W / 2, 1590);
   } else {
     ctx.fillText(`${s.name}에서`, W / 2, 1420);
     ctx.fillText('가장 많은 시간을 보냈어요', W / 2, 1510);
@@ -782,7 +798,7 @@ function pillAt(ctx, text, cx, y, bg, fg, stroke) {
 }
 
 /* ── ⑤ 탐험 유형(16유형) + 캐릭터 성장 ── */
-function renderType(ctx, s, chibiImg) {
+function renderType(ctx, s, chibiImg, t = Infinity) {
   /* 유형 고유색 배경 + 가독성 스크림 */
   bgGradient(ctx, s.type.primaryColor, shade(s.type.primaryColor, 0.62));
   ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(0, 0, W, H);
@@ -815,7 +831,9 @@ function renderType(ctx, s, chibiImg) {
   if (s.typeResult?.fallback) {
     ctx.fillText('아직 기록이 적어요 — 탐험을 시작하면 진짜 유형이 나와요!', W / 2, 1360);
   } else if (m && m.hasTrack) {
-    ctx.fillText(`🚶 ${(m.distM / 1000).toFixed(1)}km 걸었고 · 한 곳에 평균 ${Math.max(1, Math.round(m.avgStaySec / 60))}분 머물렀어요`, W / 2, 1360);
+    const km = upFix(m.distM / 1000, t, 0, 1);
+    const stay = Math.max(1, upInt(Math.max(1, Math.round(m.avgStaySec / 60)), t, 0));
+    ctx.fillText(`🚶 ${km}km 걸었고 · 한 곳에 평균 ${stay}분 머물렀어요`, W / 2, 1360);
   } else {
     ctx.font = `600 38px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.7)';
     ctx.fillText('📍 위치를 켜면 다음엔 이동거리·체류시간 분석도 담아드려요', W / 2, 1360);
@@ -823,7 +841,7 @@ function renderType(ctx, s, chibiImg) {
   const mainCnt = m ? m.counts[s.type.missionCategory] || 0 : 0;
   if (mainCnt > 0) {
     ctx.font = `700 42px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.92)';
-    ctx.fillText(`주로 한 탐험: ${s.type.missionLabel} ${mainCnt}번`, W / 2, 1430);
+    ctx.fillText(`주로 한 탐험: ${s.type.missionLabel} ${upInt(mainCnt, t, 1)}번`, W / 2, 1430);
   }
 
   /* 성격 키워드 pill */
@@ -837,9 +855,9 @@ function renderType(ctx, s, chibiImg) {
     kx += widths[i] + 20;
   });
 
-  /* 레벨 + 소품 획득 */
+  /* 레벨 + 소품 획득 — Lv도 올라간다 */
   ctx.font = `800 48px ${FONT}`;
-  pillAt(ctx, `${s.type.missionTitle} Lv.${s.lv}`, W / 2, 1625, 'rgba(0,0,0,.32)', '#fff');
+  pillAt(ctx, `${s.type.missionTitle} Lv.${Math.max(1, upInt(s.lv, t, 2))}`, W / 2, 1625, 'rgba(0,0,0,.32)', '#fff');
   const badge = s.justUnlocked
     ? `🎉 ${s.type.koreanName} 캐릭터 해금!`
     : (s.gearNew ? `${s.type.propEmoji} ${s.type.props.join('·')} 획득!` : null);
@@ -855,6 +873,20 @@ function renderType(ctx, s, chibiImg) {
 /* ── 렌더 디스패치 ── */
 function cacheBlob(i, seq) {
   $('storyCv').toBlob((b) => { if (seq === renderSeq) blobs[i] = b; }, 'image/jpeg', 0.9);
+}
+
+/* 숫자 카운트업이 있는 슬라이드 재생기 — dur 동안 매 프레임 draw(t), 끝나면 공유용 이미지 저장 */
+function playSlide(i, seq, ctx, dur, draw) {
+  const t0 = performance.now();
+  const step = (now) => {
+    if (seq !== renderSeq) return;
+    const t = now - t0;
+    ctx.clearRect(0, 0, W, H);
+    draw(t);
+    if (t < dur) requestAnimationFrame(step);
+    else cacheBlob(i, seq);
+  };
+  requestAnimationFrame(step);
 }
 
 async function renderSlide(i) {
@@ -892,12 +924,11 @@ async function renderSlide(i) {
     };
     requestAnimationFrame(step);
   } else if (s.kind === 'count') {
-    renderCount(ctx, s, null); // 1차: 그라데이션으로 즉시 → 사진 오면 재렌더
+    renderCount(ctx, s, null, 0); // 1차: 그라데이션 + 숫자 0으로 즉시 → 사진 오면 재생 시작
     const imgs = [];
     for (const id of s.animals || []) imgs.push(await cachedImg(`img/animals/${id}.jpg`));
     if (seq !== renderSeq) return;
-    ctx.clearRect(0, 0, W, H);
-    renderCount(ctx, s, imgs); cacheBlob(i, seq);
+    playSlide(i, seq, ctx, countDur(1, 900), (t) => renderCount(ctx, s, imgs, t));
   } else if (s.kind === 'quizWrong') {
     renderQuizWrong(ctx, s, null);
     const img = s.animalId ? await cachedImg(`img/animals/${s.animalId}.jpg`) : null;
@@ -905,7 +936,7 @@ async function renderSlide(i) {
     ctx.clearRect(0, 0, W, H);
     renderQuizWrong(ctx, s, img); cacheBlob(i, seq);
   } else if (s.kind === 'quizRight') {
-    renderQuizRight(ctx, s); cacheBlob(i, seq);
+    playSlide(i, seq, ctx, countDur(2, 400), (t) => renderQuizRight(ctx, s, t));
   } else if (s.kind === 'dwell') {
     /* 1차: 폴백으로 즉시 → 사진 로드되면 재렌더 */
     renderDwell(ctx, s, null, null);
@@ -951,15 +982,13 @@ async function renderSlide(i) {
     ctx.clearRect(0, 0, W, H);
     renderObserve(ctx, s, img); cacheBlob(i, seq);
   } else if (s.kind === 'best') {
-    renderBest(ctx, s); cacheBlob(i, seq);
+    playSlide(i, seq, ctx, countDur(2), (t) => renderBest(ctx, s, t));
   } else if (s.kind === 'type') {
-    renderType(ctx, s, null);
+    renderType(ctx, s, null, 0);
     const gearId = s.offerChoice ? loadAvatar().gear : s.type.id;
     const img = await renderCharacterImage({ ...loadAvatar(), gear: gearId });
     if (seq !== renderSeq) return;
-    ctx.clearRect(0, 0, W, H);
-    renderType(ctx, s, img);
-    cacheBlob(i, seq);
+    playSlide(i, seq, ctx, countDur(3), (t) => renderType(ctx, s, img, t));
   }
 }
 
