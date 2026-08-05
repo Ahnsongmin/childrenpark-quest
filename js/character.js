@@ -4,7 +4,7 @@
          탐험 성향이 손 소품(돋보기/별지팡이/배지/깃발)을 정한다. 미상 값이면 조용히 무시(하위호환). */
 import * as THREE from 'three';
 import { KEYS } from './config.js';
-import { parseComboId, getCombo, shade } from './explorer-types.mjs';
+import { parseComboId, getCombo, shade, baseImagePath } from './explorer-types.mjs';
 
 /* 모션 감소 설정 — 축하 점프 등 큰 애니메이션 최소화 */
 const REDUCED = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -19,7 +19,9 @@ export const BOTTOMS = [
 ];
 export const DRESS = { label: '분홍 원피스', color: '#f472b6' };
 
-export const DEFAULT_AVATAR = { gender: 'm', dress: false, top: 0, bottom: 0, name: '', gear: null };
+/* base: 기본 캐릭터 슬롯(1|2) — gear가 없을 때 쓰는 모습.
+   gear: 해금된 16유형 조합 id — 있으면 그 유형 캐릭터로 보인다. */
+export const DEFAULT_AVATAR = { gender: 'm', dress: false, top: 0, bottom: 0, name: '', gear: null, base: 1 };
 
 export function loadAvatar() {
   try {
@@ -28,6 +30,7 @@ export function loadAvatar() {
       const merged = { ...DEFAULT_AVATAR, ...v };
       // 구 5유형 id 등 미상 gear 폐기 — 다음 리캡에서 새 16유형으로 재장착됨
       if (merged.gear && !parseComboId(merged.gear)) merged.gear = null;
+      merged.base = merged.base === 2 ? 2 : 1;
       return merged;
     }
   } catch (_) { /* 손상된 저장값 → 기본 캐릭터 */ }
@@ -414,7 +417,6 @@ export function buildChibi(cfg = {}, scale = 1) {
    지도·마을 안·가족 마커에서 걸어다닌다. buildChibi와 동일 API(빌보드라 setHeading은 좌우 반전).
    이미지 로드 실패 시 기존 3D 치비로 자동 폴백. */
 const SPRITE_H = 14; // 유닛 키 — 기존 치비(약 12~14)와 동일한 지도 스케일감
-const DEFAULT_SPRITE_COMBO = 'curious-detective'; // 유형 미획득 시 기본 탐험복(판정 폴백 유형과 동일)
 const texCache = new Map(); // url -> Promise<Texture> (가족 마커와 내 아바타가 공유)
 
 function loadCharTexture(url) {
@@ -429,10 +431,12 @@ function loadCharTexture(url) {
   return texCache.get(url);
 }
 
-/* 아바타 설정 → 캐릭터 이미지 경로 (도감·리캡 카드에서도 사용) */
+/* 아바타 설정 → 캐릭터 이미지 경로 (도감·리캡 카드에서도 사용)
+   해금된 유형(gear)이 있으면 그 유형 캐릭터, 없으면 고른 기본 캐릭터 */
 export function characterImagePath(cfg = {}) {
-  const gear = parseComboId(cfg.gear) ? cfg.gear : DEFAULT_SPRITE_COMBO;
-  return `img/characters/${gear}-${cfg.gender === 'f' ? 'girl' : 'boy'}.webp`;
+  const g = cfg.gender === 'f' ? 'girl' : 'boy';
+  if (parseComboId(cfg.gear)) return `img/characters/${cfg.gear}-${g}.webp`;
+  return baseImagePath(cfg.gender, cfg.base);
 }
 
 export function buildAvatar(cfg = {}, scale = 1) {

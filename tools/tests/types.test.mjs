@@ -8,6 +8,7 @@ import {
 import {
   MOVEMENT_TYPES, MISSION_TYPES, COMBO_COLORS, ALL_COMBOS, ALL_CHARACTERS,
   getCombo, getCharacter, parseComboId, comboId, missionIdOfTypeId, LEGACY_TYPE_MAP, tint, shade,
+  BASE_CHARACTERS, basesFor, getBase, baseImagePath,
 } from '../../js/explorer-types.mjs';
 
 const track = (distM, stayEach, n = 3) => ({
@@ -125,4 +126,24 @@ test('데이터 축 정합 — MOVEMENT/MISSION 정의', () => {
   assert.deepEqual(MISSION_TYPES.map((m) => m.id), ['detective', 'fairy', 'boss', 'guide']);
   assert.deepEqual(MISSION_TYPES.map((m) => m.missionCategory), ['observe', 'quiz', 'dwell', 'discovery']);
   assert.equal(Object.keys(COMBO_COLORS).length, 16);
+});
+
+test('기본 캐릭터 4종 — 성별당 2종·id·이미지 경로', () => {
+  assert.equal(BASE_CHARACTERS.length, 4);
+  for (const g of ['f', 'm']) {
+    const list = basesFor(g);
+    assert.equal(list.length, 2, `${g} 기본 캐릭터 2종`);
+    assert.deepEqual(list.map((b) => b.slot).sort(), [1, 2]);
+    for (const b of list) {
+      assert.equal(b.gender, g);
+      assert.ok(b.name && b.desc && b.emoji, b.id);
+      assert.match(b.color, /^#[0-9A-Fa-f]{6}$/);
+    }
+  }
+  assert.equal(new Set(BASE_CHARACTERS.map((b) => b.id)).size, 4);
+  assert.equal(baseImagePath('f', 1), 'img/characters/base-girl-1.webp');
+  assert.equal(baseImagePath('m', 2), 'img/characters/base-boy-2.webp');
+  // 잘못된 값은 그 성별의 1번으로 폴백
+  assert.equal(getBase('f', 99).slot, 1);
+  assert.equal(getBase('x', 2).gender, 'm');
 });

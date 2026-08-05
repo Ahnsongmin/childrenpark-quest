@@ -88,6 +88,14 @@ export const LEGACY_TYPE_MAP = {
   collector: 'guide',
 };
 
+/* 으로/로 조사 — 받침 없거나 ㄹ받침이면 '로' (예: 정답요정으로 / 길라잡이로) */
+export function euRo(word) {
+  const c = word.charCodeAt(word.length - 1);
+  if (c < 0xAC00 || c > 0xD7A3) return '로';
+  const jong = (c - 0xAC00) % 28;
+  return (jong === 0 || jong === 8) ? '로' : '으로';
+}
+
 /* 이에요/예요 조사 — 마지막 한글 글자의 받침 유무 (유형명 문구 공용) */
 export function iEyo(word) {
   const c = word.charCodeAt(word.length - 1);
@@ -213,3 +221,27 @@ export function getCharacter(movementId, missionId, gender) {
 }
 
 export const ALL_CHARACTERS = ALL_COMBOS.flatMap((c) => ['m', 'f'].map((g) => getCharacter(c.movementType, c.missionType, g)));
+
+/* ── 기본 캐릭터 4종 (성별당 2종) ──
+   해금 조건 없이 처음부터 쓸 수 있는 캐릭터. 꾸미기 화면에서 성별을 고르면 그 성별의 2종 중 선택한다.
+   16유형 캐릭터는 그 유형으로 탐험을 마쳐야 해금된다(quest.profile.v1의 types 기록 기준). */
+export const BASE_CHARACTERS = [
+  { id: 'base-girl-1', gender: 'f', slot: 1, name: '햇살 탐험가',
+    desc: '반갑게 손을 흔드는 씩씩한 탐험가예요.', color: '#F2705B', emoji: '🌞' },
+  { id: 'base-girl-2', gender: 'f', slot: 2, name: '나침반 탐험가',
+    desc: '나침반을 들고 길을 찾아 나서는 탐험가예요.', color: '#8B7BD8', emoji: '🧭' },
+  { id: 'base-boy-1', gender: 'm', slot: 1, name: '지도 탐험가',
+    desc: '지도를 손에 쥐고 어디든 떠나는 탐험가예요.', color: '#C08A45', emoji: '🗺️' },
+  { id: 'base-boy-2', gender: 'm', slot: 2, name: '망원경 탐험가',
+    desc: '망원경으로 멀리까지 살펴보는 탐험가예요.', color: '#6FBF8B', emoji: '🔭' },
+];
+
+export const basesFor = (gender) => BASE_CHARACTERS.filter((b) => b.gender === gender);
+
+/* 성별·슬롯 → 기본 캐릭터. 잘못된 값이면 그 성별의 1번 */
+export function getBase(gender, slot) {
+  const list = basesFor(gender === 'f' ? 'f' : 'm');
+  return list.find((b) => b.slot === (slot === 2 ? 2 : 1)) || list[0];
+}
+
+export const baseImagePath = (gender, slot) => `img/characters/${getBase(gender, slot).id}.webp`;

@@ -11,7 +11,8 @@ import { toast } from './ui.js';
 import { trackToday, spotPosOf } from './track.js';
 import { paintMap } from './ground.js';
 import { loadAvatar, saveAvatar } from './character.js';
-import { shade, iEyo } from './explorer-types.mjs';
+import { shade, iEyo, euRo } from './explorer-types.mjs';
+import { unlockedSet } from './unlock.js';
 import { renderCharacterImage } from './type-render.js';
 import { M2U } from './geo.js';
 
@@ -146,20 +147,16 @@ async function buildSlides(quests) {
 
   /* ⑤ 탐험 유형(16유형) + 캐릭터 성장 */
   const type = r.type; // 16유형 조합 (koreanName·primaryColor·animal·props …)
-  const lv = quests.recordType(type.id);
+  const justUnlocked = !unlockedSet().has(type.id); // recordType 전에 확인 — 오늘 처음 얻은 유형인가
+  const lv = quests.recordType(type.id);            // 이 시점에 해당 유형 캐릭터가 해금된다
   const av = loadAvatar();
-  let gearNew = false, offerChoice = false;
-  if (!av.gear) {
-    av.gear = type.id;
-    saveAvatar(av);
-    gearNew = true;
-    window.dispatchEvent(new CustomEvent('avatar-changed'));
-  } else if (av.gear !== type.id) {
-    offerChoice = true; // 다회차에 다른 유형 — 원하는 모습을 고르게 (성장 Lv는 별개로 누적)
-  } else {
-    gearNew = lv === 1;
-  }
-  out.push({ kind: 'type', n: v.n, type, typeResult: r.typeResult, lv, gearNew, offerChoice, dexTotal: r.dexTotal });
+  /* 쓰던 캐릭터(기본 캐릭터 포함)를 말없이 바꾸지 않는다 — 바꿀지 물어보고 선택하게 */
+  const wearing = av.gear === type.id;
+  out.push({
+    kind: 'type', n: v.n, type, typeResult: r.typeResult, lv,
+    justUnlocked, gearNew: wearing && justUnlocked, offerChoice: !wearing,
+    dexTotal: r.dexTotal,
+  });
 
   return out;
 }
@@ -745,12 +742,15 @@ function renderType(ctx, s, chibiImg) {
   /* 레벨 + 소품 획득 */
   ctx.font = `800 48px ${FONT}`;
   pillAt(ctx, `${s.type.missionTitle} Lv.${s.lv}`, W / 2, 1625, 'rgba(0,0,0,.32)', '#fff');
-  if (s.gearNew) {
+  const badge = s.justUnlocked
+    ? `🎉 ${s.type.koreanName} 캐릭터 해금!`
+    : (s.gearNew ? `${s.type.propEmoji} ${s.type.props.join('·')} 획득!` : null);
+  if (badge) {
     ctx.font = `800 46px ${FONT}`;
-    pillAt(ctx, `${s.type.propEmoji} ${s.type.props.join('·')} 획득!`, W / 2, 1730, 'rgba(255,255,255,.2)', '#fff', 'rgba(255,255,255,.7)');
+    pillAt(ctx, badge, W / 2, 1730, 'rgba(255,255,255,.2)', '#fff', 'rgba(255,255,255,.7)');
   }
   ctx.font = `600 36px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.7)';
-  ctx.fillText(`📔 발견일지 총 ${s.dexTotal}종 · 다음 탐험에서 또 만나! 👋`, W / 2, s.gearNew ? 1810 : 1740);
+  ctx.fillText(`📔 발견일지 총 ${s.dexTotal}종 · 다음 탐험에서 또 만나! 👋`, W / 2, badge ? 1810 : 1740);
   watermark(ctx, s.n);
 }
 
@@ -768,7 +768,10 @@ async function renderSlide(i) {
   /* 유형 변경 선택 버튼 표시/숨김 */
   const choice = $('storyChoice');
   if (s.kind === 'type' && s.offerChoice) {
-    $('choiceNew').textContent = `✨ ${s.type.propEmoji} ${s.type.koreanName} 차림으로 바꾸기`;
+    const ro = euRo(s.type.koreanName);
+    $('choiceNew').textContent = s.justUnlocked
+      ? `✨ 새로 해금된 ${s.type.koreanName}${ro} 바꾸기`
+      : `✨ ${s.type.propEmoji} ${s.type.koreanName}${ro} 바꾸기`;
     choice.style.display = 'flex';
   } else choice.style.display = 'none';
 
@@ -907,7 +910,7 @@ export async function openStory(quests) {
       s.offerChoice = false;
       s.gearNew = true;
       window.dispatchEvent(new CustomEvent('avatar-changed'));
-      toast(`${s.type.propEmoji} ${s.type.koreanName} 차림을 착용했어요!`);
+      toast(`${s.type.animalEmoji} ${s.type.koreanName} 캐릭터로 바뀌었어요!`);
       renderSlide(idx);
     });
     const hit = $('storyHit');

@@ -1,12 +1,14 @@
 /* 공원 원정대 서비스 워커 — 오프라인 지원 (앱 셸 사전 캐시 + 갱신형 캐시)
    배포 시 자산이 바뀌면 VERSION을 올려야 이전 캐시가 정리된다. */
-const VERSION = 'quest-v12-2';
-/* 탐험 유형 32캐릭터 일러스트 (4이동×4성향×남녀, 총 ~1.3MB) — 지도 아바타·도감 공용 */
+const VERSION = 'quest-v13';
+/* 탐험 유형 32캐릭터 일러스트 (4이동×4성향×남녀) + 기본 캐릭터 4종 — 지도 아바타·도감 공용 */
 const CHARACTER_IMGS = ['explorer', 'curious', 'focus', 'speed'].flatMap((mv) =>
   ['detective', 'fairy', 'boss', 'guide'].flatMap((ms) =>
     ['girl', 'boy'].map((g) => `img/characters/${mv}-${ms}-${g}.webp`)));
+const BASE_IMGS = ['girl', 'boy'].flatMap((g) => [1, 2].map((n) => `img/characters/base-${g}-${n}.webp`));
 const PRECACHE = [
   ...CHARACTER_IMGS,
+  ...BASE_IMGS,
   './',
   'index.html',
   'customize.html',
@@ -17,6 +19,7 @@ const PRECACHE = [
   'js/character.js', 'js/cameraCtl.js', 'js/family.js', 'js/ui.js', 'js/main.js',
   'js/quests-data.js', 'js/quest.js', 'js/questUI.js', 'js/store.js', 'js/interior.js', 'js/story.js', 'js/chat.js', 'js/track.js',
   'js/geomath.mjs', 'js/explorer-types.mjs', 'js/location.js', 'js/type-render.js', 'js/type-card.js',
+  'js/unlock.js',
   'img/liniwani.png',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
 ];

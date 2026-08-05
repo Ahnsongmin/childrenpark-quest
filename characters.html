@@ -69,6 +69,36 @@
     font-size: 13px; font-weight: 800; color: #fff; cursor: pointer;
   }
 
+  /* 잠긴 유형 — 실루엣 + 자물쇠 */
+  .card.locked .avatarWrap .tcAvatar { filter: grayscale(1) brightness(.72) contrast(.9); }
+  .card.locked h3, .card.locked .animal { color: #8b9691; }
+  .card.locked .band { opacity: .35; }
+  .card .lockTag {
+    display: inline-block; font-size: 10.5px; font-weight: 800; color: #8b7a45;
+    background: #fdf3d6; border-radius: 8px; padding: 3px 8px; margin-top: 6px;
+  }
+  .card.mine { border-color: #2e6b34; }
+  .card .mineTag {
+    display: inline-block; font-size: 10.5px; font-weight: 800; color: #fff;
+    background: #2e6b34; border-radius: 8px; padding: 3px 8px; margin-top: 6px;
+  }
+
+  /* 기본 캐릭터 섹션 */
+  .sectionTitle { font-size: 15px; color: #2e6b34; margin: 20px 2px 2px; font-weight: 800; }
+  .sectionSub { font-size: 11.5px; color: #7ba381; margin: 3px 2px 0; line-height: 1.5; }
+  #baseGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
+  @media (min-width: 700px) { #baseGrid { grid-template-columns: repeat(4, 1fr); } }
+  #unlockBar {
+    margin-top: 12px; background: #fff; border: 2px solid #e4eede; border-radius: 14px;
+    padding: 10px 13px; font-size: 12.5px; color: #445; line-height: 1.55;
+  }
+  #unlockBar b { color: #2e6b34; }
+  #modalLock {
+    background: #fdf3d6; border: 1px solid #ecdcae; border-radius: 12px; padding: 10px 12px;
+    font-size: 12.5px; color: #7a6a35; line-height: 1.55; margin-top: 10px; display: none;
+  }
+  #modalGo:disabled { background: #dfe4dc !important; color: #98a49b; cursor: not-allowed; }
+
   /* 상세 모달 */
   #modalWrap { position: fixed; inset: 0; z-index: 20; display: none; }
   #modalWrap.open { display: block; }
@@ -121,8 +151,9 @@
 <div id="page">
   <header>
     <h1>🧢 나의 공원 탐험 유형</h1>
-    <p>공원을 어떻게 돌아다녔는지(이동 패턴)와 어떤 탐험을 좋아하는지(탐험 성향)에 따라
-    16가지 유형이 있어요. 남자·여자 캐릭터까지 모두 32명! 마음에 드는 캐릭터로 탐험을 떠나 보세요.</p>
+    <p>기본 캐릭터 4명은 처음부터 쓸 수 있어요. 공원을 어떻게 돌아다녔는지(이동 패턴)와
+    어떤 탐험을 좋아하는지(탐험 성향)에 따라 16가지 유형이 있고, 그 유형으로 탐험을 마치면
+    유형 캐릭터가 해금돼요!</p>
     <p class="nav"><a href="index.html">🗺️ 지도로 돌아가기</a><a href="customize.html">👕 내 캐릭터 꾸미기</a></p>
   </header>
 
@@ -144,6 +175,17 @@
     </div>
   </div>
 
+  <h2 class="sectionTitle">⭐ 기본 캐릭터</h2>
+  <p class="sectionSub">해금 없이 언제나 쓸 수 있어요. 마음에 드는 친구를 골라 탐험을 떠나요!</p>
+  <div id="baseGrid" aria-live="polite"></div>
+
+  <h2 class="sectionTitle">🧭 16가지 탐험 유형 캐릭터</h2>
+  <p class="sectionSub" id="unlockCount"></p>
+  <div id="unlockBar">
+    <b>어떻게 해금하나요?</b> 공원을 탐험한 뒤 📔 내 기록 → 🌟 오늘의 리캡에서
+    <b>오늘의 탐험 유형</b>이 정해지면, 그 유형의 캐릭터가 해금돼요.
+    많이 걸었는지·한 곳에 오래 머물렀는지와, 어떤 탐험(관찰·퀴즈·체류·발견)을 많이 했는지로 정해져요.
+  </div>
   <div id="grid" aria-live="polite"></div>
 </div>
 
@@ -162,6 +204,7 @@
       <div class="mRow"><b>탐험 성향</b><span id="modalMission"></span></div>
       <div class="mRow"><b>대표 소품</b><span id="modalProps"></span></div>
       <div class="kws" id="modalKws"></div>
+      <div id="modalLock"></div>
       <div class="mBtns">
         <button id="modalClose2">닫기</button>
         <button id="modalGo">🧭 이 캐릭터로 탐험하기</button>
@@ -180,16 +223,19 @@
 }}
 </script>
 <script type="module">
-import { MOVEMENT_TYPES, MISSION_TYPES, ALL_COMBOS, getCharacter, iEyo } from './js/explorer-types.mjs';
+import { MOVEMENT_TYPES, MISSION_TYPES, ALL_COMBOS, getCharacter, iEyo,
+  basesFor, baseImagePath } from './js/explorer-types.mjs';
 import { characterAvatarEl } from './js/type-card.js';
 import { renderCharacterImage } from './js/type-render.js';
 import { loadAvatar, saveAvatar } from './js/character.js';
+import { unlockedSet, unlockHint } from './js/unlock.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 let gender = loadAvatar().gender || 'm'; // 내 캐릭터 성별로 시작
 let moveSel = 'all', missionSel = 'all';
+let unlocked = unlockedSet();
 
 function toast(msg) {
   const t = $('toast');
@@ -244,24 +290,69 @@ function syncControls() {
   renderFilterChips($('missionFilter'), MISSION_TYPES, missionSel, (id) => { missionSel = id; syncControls(); renderGrid(); });
 }
 for (const b of $('genderToggle').children) {
-  b.addEventListener('click', () => { gender = b.dataset.g; syncControls(); renderGrid(); });
+  b.addEventListener('click', () => { gender = b.dataset.g; syncControls(); renderBaseGrid(); renderGrid(); });
 }
 
-/* ── 카드 그리드 ── */
+/* ── 기본 캐릭터 카드 (해금 없이 사용 가능) ── */
+function renderBaseGrid() {
+  const grid = $('baseGrid');
+  grid.innerHTML = '';
+  const av = loadAvatar();
+  for (const b of basesFor(gender)) {
+    const mine = !av.gear && av.gender === b.gender && (av.base === b.slot);
+    const card = document.createElement('div');
+    card.className = `card${mine ? ' mine' : ''}`;
+    card.innerHTML = `
+      <div class="band" style="background:${b.color}"></div>
+      <div class="avatarWrap"></div>
+      <h3>${b.emoji} ${esc(b.name)}</h3>
+      <div class="animal">기본 캐릭터</div>
+      <p class="desc">${esc(b.desc)}</p>
+      ${mine ? '<div style="padding:0 12px"><span class="mineTag">지금 내 캐릭터</span></div>' : ''}
+      <button class="more" style="background:${b.color}">${mine ? '사용 중' : '이 캐릭터로 탐험하기'}</button>`;
+    const wrapEl = card.querySelector('.avatarWrap');
+    const holder = document.createElement('div');
+    holder.className = 'tcAvatar';
+    holder.style.cssText = `width:108px;height:108px;border-radius:50%;display:flex;align-items:center;
+      justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 32%, #fff, ${b.color}55)`;
+    holder.innerHTML = `<img src="${baseImagePath(b.gender, b.slot)}" alt="${esc(b.name)}"
+      style="width:92%;height:92%;object-fit:contain">`;
+    wrapEl.appendChild(holder);
+    card.querySelector('.more').addEventListener('click', () => pickBase(b));
+    grid.appendChild(card);
+  }
+}
+
+function pickBase(b) {
+  const av = loadAvatar();
+  av.gender = b.gender;
+  av.base = b.slot;
+  av.gear = null; // 기본 캐릭터 사용
+  saveAvatar(av);
+  toast(`${b.emoji} ${b.name}! 지도로 이동해요`);
+  setTimeout(() => { location.href = 'index.html'; }, 700);
+}
+
+/* ── 유형 카드 그리드 (해금된 것만 사용 가능) ── */
 function renderGrid() {
   const grid = $('grid');
   grid.innerHTML = '';
+  const av = loadAvatar();
+  $('unlockCount').textContent =
+    `해금한 유형 ${unlocked.size} / 16 — 잠긴 캐릭터는 그 유형으로 탐험을 마치면 열려요.`;
   const combos = ALL_COMBOS.filter((c) =>
     (moveSel === 'all' || c.movementType === moveSel) && (missionSel === 'all' || c.missionType === missionSel));
   for (const combo of combos) {
     const ch = getCharacter(combo.movementType, combo.missionType, gender);
+    const open = unlocked.has(combo.id);
+    const mine = open && av.gear === combo.id && av.gender === gender;
     const card = document.createElement('div');
-    card.className = 'card';
-    card.style.borderColor = combo.secondaryColor;
+    card.className = `card${open ? '' : ' locked'}${mine ? ' mine' : ''}`;
+    if (!mine) card.style.borderColor = combo.secondaryColor;
     card.innerHTML = `
       <div class="band" style="background:${combo.primaryColor}"></div>
       <div class="avatarWrap"></div>
-      <h3>${combo.typeNumber}. ${esc(combo.koreanName)}</h3>
+      <h3>${open ? '' : '🔒 '}${combo.typeNumber}. ${esc(combo.koreanName)}</h3>
       <div class="animal">${combo.animalEmoji} ${esc(combo.animal)} 친구</div>
       <div class="badges">
         <span>🚶 ${esc(combo.moveLabel)}</span>
@@ -269,7 +360,10 @@ function renderGrid() {
         <span style="background:${combo.secondaryColor};color:#334">${esc(combo.missionLabel)}</span>
       </div>
       <p class="desc">${esc(combo.description)}</p>
-      <button class="more" style="background:${combo.primaryColor}" aria-label="${esc(combo.koreanName)} 자세히 보기">자세히 보기</button>`;
+      <div style="padding:0 12px">${mine ? '<span class="mineTag">지금 내 캐릭터</span>'
+        : (open ? '' : '<span class="lockTag">🔒 아직 잠겨 있어요</span>')}</div>
+      <button class="more" style="background:${open ? combo.primaryColor : '#9aa79e'}"
+        aria-label="${esc(combo.koreanName)} 자세히 보기">${open ? '자세히 보기' : '해금 조건 보기'}</button>`;
     card.querySelector('.avatarWrap').appendChild(characterAvatarEl({
       combo, imgPromise: characterImage(ch), size: 108,
     }));
@@ -294,12 +388,21 @@ function openModal(combo, opener) {
   $('modalMission').innerHTML = `<b style="color:${combo.primaryColor}">${esc(combo.missionTitle)}</b> — ${esc(combo.missionLabel)}을 가장 좋아해요`;
   $('modalProps').textContent = combo.props.join(' · ');
   $('modalKws').innerHTML = combo.personalityKeywords.map((k) => `<span style="background:${combo.primaryColor}">#${esc(k)}</span>`).join('');
-  $('modalGo').style.background = combo.primaryColor;
+  const open = unlocked.has(combo.id);
+  const go = $('modalGo');
+  go.disabled = !open;
+  go.textContent = open ? '🧭 이 캐릭터로 탐험하기' : '🔒 아직 잠겨 있어요';
+  go.style.background = open ? combo.primaryColor : '';
+  const lock = $('modalLock');
+  lock.style.display = open ? 'none' : 'block';
+  lock.innerHTML = open ? '' : `🔒 <b>해금 조건</b><br>${esc(unlockHint(combo))}`;
   const av = $('modalAvatar');
   av.innerHTML = '';
-  av.appendChild(characterAvatarEl({ combo, imgPromise: characterImage(ch), size: 170 }));
+  const avEl = characterAvatarEl({ combo, imgPromise: characterImage(ch), size: 170 });
+  if (!open) avEl.style.filter = 'grayscale(1) brightness(.72) contrast(.9)';
+  av.appendChild(avEl);
   wrap.classList.add('open');
-  $('modalGo').focus();
+  (open ? go : $('modalClose2')).focus();
 }
 
 function closeModal() {
@@ -311,10 +414,10 @@ $('modalX').addEventListener('click', closeModal);
 $('modalClose2').addEventListener('click', closeModal);
 $('modalBack').addEventListener('click', closeModal);
 $('modalGo').addEventListener('click', () => {
-  if (!curCombo) return;
+  if (!curCombo || !unlocked.has(curCombo.id)) return;
   const av = loadAvatar();
   av.gender = gender;
-  av.gear = curCombo.id; // 지도 아바타가 이 유형의 후드·귀·소품을 착용
+  av.gear = curCombo.id; // 지도 아바타가 이 유형 캐릭터로 바뀜
   saveAvatar(av);
   toast(`${curCombo.animalEmoji} ${curCombo.koreanName}${iEyo(curCombo.koreanName)}! 지도로 이동해요`);
   setTimeout(() => { location.href = 'index.html'; }, 700);
@@ -333,6 +436,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 syncControls();
+renderBaseGrid();
 renderGrid();
 </script>
 <script>

@@ -35,6 +35,26 @@
   .opts button.sel { border-color: #2e6b34; background: #eef7e8; color: #2e6b34; }
   .opts button:disabled { opacity: .35; cursor: default; }
   .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+
+  /* 기본 캐릭터 고르기 (성별당 2종) */
+  #baseOpts { display: flex; gap: 10px; }
+  #baseOpts button {
+    flex: 1; border: 2px solid #e2e8e2; border-radius: 16px; background: #fff;
+    padding: 10px 6px 12px; cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; gap: 6px;
+  }
+  #baseOpts button.sel { border-color: #2e6b34; background: #eef7e8; }
+  #baseOpts img { width: 84px; height: 104px; object-fit: contain; }
+  #baseOpts .bn { font-size: 13px; font-weight: 800; color: #445; }
+  #baseOpts button.sel .bn { color: #2e6b34; }
+  #gearNote {
+    margin-top: 10px; background: #f2f8ee; border: 1px solid #dbe9d5; border-radius: 12px;
+    padding: 9px 11px; font-size: 12px; color: #4d6b52; line-height: 1.55; display: none;
+  }
+  #gearNote button {
+    margin-top: 7px; width: 100%; border: 0; border-radius: 10px; background: #2e6b34; color: #fff;
+    font-size: 12.5px; font-weight: 800; padding: 9px; cursor: pointer;
+  }
   input#nameInput {
     width: 100%; border: 2px solid #e2e8e2; border-radius: 14px; padding: 12px 14px; font-size: 15px;
   }
@@ -70,11 +90,20 @@
     </div>
   </div>
 
+  <div class="panel" id="basePanel">
+    <h3>기본 캐릭터 고르기</h3>
+    <div id="baseOpts"></div>
+    <div id="gearNote">
+      지금은 탐험으로 해금한 <b id="gearName">유형 캐릭터</b>를 쓰고 있어요.
+      위에서 기본 캐릭터를 고르면 기본 모습으로 돌아가요.
+    </div>
+  </div>
+
   <div class="panel" id="spriteNote" style="display:none">
-    <h3>🧢 탐험복</h3>
+    <h3>🧢 유형 캐릭터</h3>
     <p style="font-size:12.5px;color:#5d7a63;line-height:1.6;margin:0">
-      캐릭터의 옷과 모자는 <b>탐험 유형</b>에 따라 바뀌어요!<br>
-      공원을 탐험하고 리캡에서 나의 유형을 찾아 새 탐험복을 얻어 보세요.
+      공원을 탐험하고 리캡에서 <b>오늘의 탐험 유형</b>이 정해지면 그 유형의 캐릭터가 해금돼요.
+      해금한 캐릭터는 도감에서 언제든 바꿔 쓸 수 있어요.
       <a href="characters.html" style="color:#2e6b34;font-weight:700">유형 도감 보기 →</a>
     </p>
   </div>
@@ -125,6 +154,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { buildAvatar, loadAvatar, saveAvatar, TOPS, BOTTOMS } from './js/character.js';
+import { basesFor, baseImagePath, parseComboId, getCombo } from './js/explorer-types.mjs';
 import { loadJSON, saveJSON } from './js/store.js';
 
 const cfg = loadAvatar();
@@ -212,9 +242,28 @@ function renderOpts(el, defs, selIdx, onPick, disabled) {
   });
 }
 
+/* 기본 캐릭터 2종 — 성별에 맞춰 표시. 고르면 해금 캐릭터(gear)를 벗고 기본 모습으로 */
+function renderBaseOpts() {
+  const el = $('baseOpts');
+  el.innerHTML = '';
+  for (const b of basesFor(cfg.gender)) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    if (!cfg.gear && cfg.base === b.slot) btn.classList.add('sel');
+    btn.innerHTML = `<img src="${baseImagePath(b.gender, b.slot)}" alt="">
+      <span class="bn">${b.emoji} ${b.name}</span>`;
+    btn.addEventListener('click', () => { cfg.base = b.slot; cfg.gear = null; sync(); });
+    el.appendChild(btn);
+  }
+  const gearCombo = parseComboId(cfg.gear)
+    ? getCombo(parseComboId(cfg.gear).movement.id, parseComboId(cfg.gear).mission.id) : null;
+  $('gearNote').style.display = gearCombo ? 'block' : 'none';
+  if (gearCombo) $('gearName').textContent = `${gearCombo.animalEmoji} ${gearCombo.koreanName}`;
+}
 function sync() {
   for (const b of $('genderOpts').children) b.classList.toggle('sel', b.dataset.v === cfg.gender);
   for (const b of $('styleOpts').children) b.classList.toggle('sel', (b.dataset.v === 'dress') === cfg.dress);
+  renderBaseOpts();
   renderOpts($('topOpts'), TOPS, cfg.top, (i) => { cfg.top = i; sync(); }, cfg.dress);
   renderOpts($('bottomOpts'), BOTTOMS, cfg.bottom, (i) => { cfg.bottom = i; sync(); }, cfg.dress);
   $('topPanel').style.opacity = cfg.dress ? 0.45 : 1;
