@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘의 동물 상태 — 공원 원정대</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧑‍🌾</text></svg>">
+<meta name="theme-color" content="#2e6b34">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    background: #cfe3d2; display: flex; justify-content: center; color: #2f3a31;
+  }
+  #frame {
+    position: relative; width: 100%; max-width: 560px; min-height: 100dvh;
+    background: linear-gradient(#e8f1e4, #f6faf4 40%); padding-bottom: 96px;
+    box-shadow: 0 0 24px rgba(0,0,0,.12);
+  }
+  header { padding: 18px 16px 8px; }
+  header h1 { font-size: 20px; color: #2e6b34; }
+  header p { font-size: 12.5px; color: #6a8a70; margin-top: 5px; line-height: 1.6; }
+  .notice {
+    margin: 8px 16px 0; background: #fff8e6; border: 1px solid #f0dfae; border-radius: 12px;
+    padding: 10px 12px; font-size: 12px; color: #7a6320; line-height: 1.6;
+  }
+  .summary {
+    margin: 12px 16px 0; background: #2e6b34; color: #fff; border-radius: 14px;
+    padding: 12px 14px; font-size: 13.5px; font-weight: 700; line-height: 1.6;
+  }
+  .summary span { font-size: 17px; }
+  .spot { margin: 14px 16px 0; background: #fff; border-radius: 16px; padding: 12px 14px 14px;
+    box-shadow: 0 3px 12px rgba(0,0,0,.07); }
+  .spot h2 { font-size: 14.5px; color: #2e6b34; margin-bottom: 10px; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid #f0f4ef; }
+  .spot .row:first-of-type { border-top: 0; }
+  .nm { flex: 1; font-size: 14px; font-weight: 600; min-width: 0; }
+  .nm small { display: block; font-weight: 400; font-size: 11px; color: #93a595; margin-top: 2px; }
+  .row.off .nm { color: #b2bfb4; text-decoration: line-through; }
+  .row.off .nm small { text-decoration: none; }
+  .chip {
+    border: 2px solid #e2e8e2; border-radius: 11px; background: #fff; cursor: pointer;
+    font-size: 12px; font-weight: 800; color: #7d8c80; padding: 8px 10px; white-space: nowrap;
+  }
+  .chip.on.indoor { border-color: #c2703c; background: #fdf1e8; color: #a75a26; }
+  .chip.on.observe { border-color: #2e6b34; background: #eef7e8; color: #2e6b34; }
+  .noteWrap { margin: 6px 0 2px; }
+  .noteWrap input {
+    width: 100%; border: 2px solid #eef2ed; border-radius: 11px; padding: 9px 11px; font-size: 13px;
+    font-family: inherit;
+  }
+  #bar {
+    position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center;
+    background: #ffffffe8; backdrop-filter: blur(6px); border-top: 1px solid #dfe8dd; padding: 10px 16px;
+  }
+  #barIn { width: 100%; max-width: 560px; display: flex; gap: 8px; }
+  #bar button {
+    flex: 1; border: 0; border-radius: 14px; font-size: 14.5px; font-weight: 800; padding: 14px 8px;
+    cursor: pointer; font-family: inherit;
+  }
+  #saveBtn { background: #2e6b34; color: #fff; box-shadow: 0 4px 14px rgba(46,107,52,.32); }
+  #copyBtn { background: #e8efe6; color: #3d5642; flex: 0 0 40%; }
+  #resetLink { display: block; text-align: center; margin: 16px; font-size: 12px; color: #93a595; }
+  #toast {
+    position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%) translateY(10px);
+    background: #2f3a31; color: #fff; font-size: 13px; font-weight: 700; padding: 11px 18px;
+    border-radius: 999px; opacity: 0; transition: .25s; pointer-events: none; max-width: 90vw; text-align: center;
+  }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #jsonOut {
+    display: none; margin: 12px 16px 0; width: calc(100% - 32px); height: 150px; font-size: 11px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; border: 2px solid #dfe8dd; border-radius: 12px;
+    padding: 10px; resize: vertical;
+  }
+</style>
+</head>
+<body>
+<div id="frame">
+  <header>
+    <h1>🧑‍🌾 오늘의 동물 상태</h1>
+    <p>오늘 <b>내실에 있는 동물</b>을 체크하면, 그 동물 앞에서 아이가 헛탕 치지 않도록 탐험에서 빠집니다.<br>
+       <b>특별관찰</b>로 지정하면 그 우리가 오늘의 관찰 탐험으로 먼저 배정됩니다.</p>
+  </header>
+
+  <div class="notice">
+    시제품 화면입니다. 지금은 이 기기에만 저장되며, 본사업에서는 사육사 계정으로 저장됩니다.<br>
+    아무것도 체크하지 않아도 탐험은 정상 동작합니다(전체 관람 가능으로 간주).
+  </div>
+
+  <div class="summary" id="summary"></div>
+  <div id="list"></div>
+  <textarea id="jsonOut" readonly></textarea>
+  <a id="resetLink" href="#">전체 해제하기</a>
+</div>
+
+<div id="bar"><div id="barIn">
+  <button id="copyBtn">📋 코드 복사</button>
+  <button id="saveBtn">✅ 저장</button>
+</div></div>
+<div id="toast"></div>
+
+<script type="module">
+import { ANIMALS, SPOTS } from './js/quests-data.js';
+import { loadKeeper, saveKeeper } from './js/animal-status.js';
+
+const $ = (id) => document.getElementById(id);
+const state = loadKeeper();
+const today = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+})();
+
+const entryOf = (id) => (state[id] ||= { indoor: false, needObserve: false, note: '' });
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+function renderSummary() {
+  const all = Object.values(state);
+  const indoor = all.filter((v) => v.indoor).length;
+  const obs = all.filter((v) => v.needObserve).length;
+  $('summary').innerHTML = indoor || obs
+    ? `오늘 내실 <span>${indoor}</span>종 · 특별관찰 <span>${obs}</span>종`
+    : '오늘은 전체 동물이 관람 가능해요 — 체크할 것이 없으면 그대로 두세요';
+}
+
+/* 동물사별 카드 — 동물 우리(kind: 'animal')만 대상 */
+for (const spot of SPOTS.filter((s) => s.kind === 'animal')) {
+  const card = document.createElement('div');
+  card.className = 'spot';
+  card.innerHTML = `<h2>${spot.emoji} ${spot.name} <span style="color:#a8bbad">(${spot.animals.length}종)</span></h2>`;
+  for (const id of spot.animals) {
+    const a = ANIMALS[id];
+    const e = entryOf(id);
+    const row = document.createElement('div');
+    row.className = 'row' + (e.indoor ? ' off' : '');
+    row.innerHTML = `
+      <div class="nm">${a.emoji} ${a.name}<small class="noteView"></small></div>
+      <button class="chip indoor${e.indoor ? ' on' : ''}" data-k="indoor">🏠 내실</button>
+      <button class="chip observe${e.needObserve ? ' on' : ''}" data-k="needObserve">🔍 특별관찰</button>`;
+
+    const noteWrap = document.createElement('div');
+    noteWrap.className = 'noteWrap';
+    noteWrap.style.display = e.needObserve ? 'block' : 'none';
+    noteWrap.innerHTML = '<input maxlength="40" placeholder="한 줄 메모 (예: 어제 새끼가 태어났어요)">';
+    const noteInput = noteWrap.querySelector('input');
+    noteInput.value = e.note || '';
+    noteInput.addEventListener('input', () => {
+      e.note = noteInput.value.trim();
+      e.updated = today;
+      row.querySelector('.noteView').textContent = e.note;
+    });
+    row.querySelector('.noteView').textContent = e.note || '';
+
+    for (const btn of row.querySelectorAll('.chip')) {
+      btn.addEventListener('click', () => {
+        const k = btn.dataset.k;
+        e[k] = !e[k];
+        e.updated = today;
+        btn.classList.toggle('on', e[k]);
+        if (k === 'indoor') row.classList.toggle('off', e.indoor);
+        if (k === 'needObserve') noteWrap.style.display = e.needObserve ? 'block' : 'none';
+        renderSummary();
+      });
+    }
+    card.append(row, noteWrap);
+  }
+  $('list').append(card);
+}
+renderSummary();
+
+$('saveBtn').addEventListener('click', () => {
+  const clean = saveKeeper(state);
+  toast(`저장했어요 — 내실 ${Object.values(clean).filter((v) => v.indoor).length}종 · 특별관찰 ${Object.values(clean).filter((v) => v.needObserve).length}종`);
+});
+
+/* 배포본(data/animal-status.js)에 그대로 붙여 넣을 코드 */
+$('copyBtn').addEventListener('click', async () => {
+  const clean = saveKeeper(state);
+  const code = `export const ANIMAL_STATUS = ${JSON.stringify(clean, null, 2)};`;
+  const out = $('jsonOut');
+  out.style.display = 'block';
+  out.value = code;
+  try {
+    await navigator.clipboard.writeText(code);
+    toast('복사했어요 — data/animal-status.js에 붙여 넣으세요');
+  } catch (_) {
+    out.select();
+    toast('아래 상자의 내용을 복사해 주세요');
+  }
+});
+
+$('resetLink').addEventListener('click', (ev) => {
+  ev.preventDefault();
+  for (const k of Object.keys(state)) delete state[k];
+  saveKeeper(state);
+  location.reload();
+});
+</script>
+</body>
+</html>

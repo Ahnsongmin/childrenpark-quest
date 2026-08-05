@@ -1,6 +1,8 @@
-/* 탐험 로직: 일일 배정(시드 기반)·지오펜스·도감·기록·리캡·성장·메달
-   "AI 배정"의 시제품 구현 — 날짜·나이·방문 회차·이전 기록으로 결정적으로 선택.
-   우선순위(팀 기획): ①안 가본 우리 ②가봤지만 탐험 미완/퀴즈 오답 ③완료한 곳 */
+/* 탐험 로직: 일일 배정(점수제)·지오펜스·도감·기록·리캡·성장·메달
+   배정은 설명·재현 가능한 결정적 규칙이다(생성 모델 아님) — 근거: 미션생성로직_확정안.md
+   ① 스팟별 점수 계산(미방문+40 / 관찰필요+30 / 저활동+20 / 미수행+15 / 중복-50)
+   ② 체류 예정시간에 맞는 상위 N곳 선정  ③ 스팟별 미션 유형(관찰·교육·체류) 결정
+   내실 동물은 점수가 아니라 후보에서 아예 빠진다 — 아이가 빈 우리 앞에서 헛탕 치지 않도록. */
 import { SPOTS, ANIMALS, QUIZZES, DISCOVERIES, MEDALS } from './quests-data.js';
 import { LANDMARKS } from './config.js';
 import { prj, M2U } from './geo.js';
@@ -11,6 +13,8 @@ import {
   isTrackReliable, classifyMovementFromTrack, classifyMovementFromActivity, classifyMission, avgStaySec,
 } from './geomath.mjs';
 import { getCombo, missionIdOfTypeId, LEGACY_TYPE_MAP } from './explorer-types.mjs';
+import { LOW_ACTIVITY_SPOTS, ageBandOf, stayBandOf, rankSpots, missionTypeFor } from './mission-score.mjs';
+import { isIndoor, needsObserve, visibleAnimals } from './animal-status.js';
 
 const P_KEY = 'quest.profile.v1';
 const L_KEY = 'quest.log.v1';
@@ -77,18 +81,53 @@ export function initQuests({ onNear } = {}) {
     return allDone().some((d) => d.spot === spotId);
   };
 
+  /* 스팟 하나의 배정 점수 플래그 — 가중치 표(mission-score.mjs MISSION_WEIGHTS)와 1:1 대응 */
+  function flagsOf(s) {
+    const touched = allDone().some((d) => d.spot === s.id);
+    if (s.kind !== 'animal') {
+      return { unvisited: !touched, lowActivity: LOW_ACTIVITY_SPOTS.has(s.id), duplicate: touched };
+    }
+    const animals = visibleAnimals(s.animals); // 내실 동물은 판단에서 제외
+    const quizOK = spotQuizCorrect(s.id);
+    return {
+      unvisited: animals.some((a) => !log.dex[a]), // 발견일지에 없는 동물이 남아 있다
+      needObserve: animals.some((a) => needsObserve(a)), // 사육사가 오늘 특별관찰로 지정
+      lowActivity: LOW_ACTIVITY_SPOTS.has(s.id),
+      incomplete: touched && !quizOK, // 가봤지만 미완 또는 퀴즈 오답
+      duplicate: touched && quizOK, // 이미 완수
+    };
+  }
+
   function computeAssign(visitN) {
     const rng = mulberry32(strSeed(`${todayKey()}|${visitN}|${profile.age || 0}`));
-    const prio = (s) => (!spotTouched(s.id) ? 0 : (s.kind === 'animal' && !spotQuizCorrect(s.id) ? 1 : 2));
-    const animals = shuffled(SPOTS.filter((s) => s.kind === 'animal'), rng)
-      .sort((a, b) => prio(a) - prio(b))
-      .slice(0, 3).map((s) => s.id); // 전체 우리의 ~1/3만 — 예측 불가능한 재미
-    const dwell = shuffled(SPOTS.filter((s) => s.kind === 'dwell'), rng)
-      .sort((a, b) => prio(a) - prio(b))[0].id;
+    const plan = stayBandOf(profile.stayMin ?? null); // 체류 예정시간 → 배정량
+
+    /* 동물마을: 관람 가능한 동물이 하나도 없는 우리(전부 내실)는 후보에서 제외.
+       동점은 시드 셔플 순서를 그대로 따르므로(안정 정렬) 같은 날 같은 결과가 재현된다. */
+    const animalPool = shuffled(SPOTS.filter((s) => s.kind === 'animal' && visibleAnimals(s.animals).length > 0), rng);
+    const spots = rankSpots(animalPool, flagsOf).slice(0, plan.animal).map((r) => r.spot.id);
+    const dwellPool = shuffled(SPOTS.filter((s) => s.kind === 'dwell'), rng);
+    const dwell = rankSpots(dwellPool, flagsOf)[0].spot.id;
+
+    /* 스팟별 미션 유형 — 특별관찰 지정이면 관찰 고정, 아니면 나이 구간 비율로 결정 */
+    const types = {};
+    for (const id of spots) {
+      const s = spotById.get(id);
+      types[id] = missionTypeFor({
+        kind: s.kind,
+        needObserve: visibleAnimals(s.animals).some((a) => needsObserve(a)),
+        age: profile.age,
+        rnd: rng(),
+      });
+    }
+    types[dwell] = 'dwell';
+
     const doneDiscs = new Set(log.visits.filter((v) => v.discDone).map((v) => v.assign.disc));
     const disc = shuffled(DISCOVERIES, rng)
       .sort((a, b) => (doneDiscs.has(a.id) ? 1 : 0) - (doneDiscs.has(b.id) ? 1 : 0))[0].id;
-    return { spots: animals, dwell, disc };
+    /* 발견 탐험은 공원 곳곳에서 사진 2장을 모으는 형태라 1시간 미만 방문에는 배정하지 않는다.
+       def는 항상 남겨 리캡·목록이 참조할 수 있게 하고, 배정 여부만 discOn으로 구분한다. */
+    return { spots, dwell, disc, discOn: plan.disc, types, stayBand: plan.id };
   }
 
   function ensureVisit() {
@@ -101,8 +140,18 @@ export function initQuests({ onNear } = {}) {
     return v;
   }
 
-  const band = () => (profile.age !== null && profile.age >= 8 ? 'hard' : 'easy');
+  const band = () => ageBandOf(profile.age).quizBand;
   const pickIdx = (spotId, len) => (strSeed(todayKey() + spotId) + ensureVisit().n) % len;
+
+  /* 오늘 이 우리에서 낼 관찰 문항 — 내실 동물이 주인공인 문항은 피하고,
+     사육사가 특별관찰로 지정한 동물이 있으면 그 동물 문항을 우선한다. */
+  function pickObserve(s) {
+    const shown = s.observe.filter((ob) => !(ob.animals || []).some((a) => isIndoor(a)));
+    const list = shown.length ? shown : s.observe;
+    const wanted = list.filter((ob) => (ob.animals || []).some((a) => needsObserve(a)));
+    const pool = wanted.length ? wanted : list;
+    return pool[pickIdx(s.id + 'o', pool.length)];
+  }
 
   let near = null;
   const lastAnnounced = new Map(); // spotId → 마지막 알림 시각 (쿨다운)
@@ -150,17 +199,36 @@ export function initQuests({ onNear } = {}) {
       }
     },
 
-    /* 이 스팟에서 지금 할 수 있는 탐험 목록 (퀴즈는 동물 단위 — quizFor 참조) */
+    /* 이 스팟의 오늘 미션 유형 — 배정 때 정해 두되, 교육 유형인데 남은 퀴즈 후보가
+       없으면(그 마을 동물을 다 풀었음) 관찰로 되돌린다. 그래야 진행률이 막히지 않는다. */
+    missionTypeOf(spotId) {
+      const s = spotById.get(spotId);
+      if (!s) return null;
+      if (s.kind === 'dwell') return 'dwell';
+      const t = ensureVisit().assign.types?.[spotId] || 'observe';
+      if (t === 'quiz' && api.quizAnimalsFor(spotId).length === 0) return 'observe';
+      return t;
+    },
+
+    /* 이 스팟에서 지금 할 수 있는 탐험 목록 (교육 유형의 실제 문제는 동물 단위 — quizFor 참조) */
     questsFor(spotId) {
       const s = spotById.get(spotId);
       const v = ensureVisit();
       const out = [];
       if (!api.isAssigned(spotId)) return out;
-      if (s.kind === 'animal') {
-        const ob = s.observe[pickIdx(spotId + 'o', s.observe.length)];
-        out.push({ type: 'observe', prompt: ob.text, done: v.done.some((d) => d.spot === spotId && d.type === 'observe') });
-      } else {
+      const type = api.missionTypeOf(spotId);
+      if (type === 'dwell') {
         out.push({ type: 'dwell', ...s.dwell, done: v.done.some((d) => d.spot === spotId && d.type === 'dwell') });
+      } else if (type === 'quiz') {
+        const picks = api.quizAnimalsFor(spotId);
+        out.push({
+          type: 'quiz',
+          animals: picks,
+          prompt: `${picks.map((a) => `${ANIMALS[a].emoji} ${ANIMALS[a].name}`).join(' · ')} 친구가 오늘 퀴즈를 준비했어요. 우리 가까이 가면 튀어나와요!`,
+          done: picks.length > 0 && picks.every((a) => api.animalQuizDone(a)),
+        });
+      } else {
+        out.push({ type: 'observe', prompt: pickObserve(s).text, done: v.done.some((d) => d.spot === spotId && d.type === 'observe') });
       }
       return out;
     },
@@ -188,7 +256,8 @@ export function initQuests({ onNear } = {}) {
         const rng = mulberry32(strSeed(`${todayKey()}|quiz|${spotId}|${profile.seed}`));
         const quizzed = new Set(allDone().filter((d) => d.type === 'quiz' && d.animal).map((d) => d.animal));
         const dexComplete = Object.keys(ANIMALS).every((id) => log.dex[id]);
-        const pool = dexComplete ? s.animals : s.animals.filter((a) => !quizzed.has(a));
+        const shown = visibleAnimals(s.animals); // 오늘 내실에 있는 동물은 퀴즈를 낼 수 없다
+        const pool = dexComplete ? shown : shown.filter((a) => !quizzed.has(a));
         const n = Math.min(pool.length, 1 + Math.floor(rng() * 2)); // 1~2종 (남은 후보 없으면 0)
         v.quizPicks[spotId] = shuffled(pool, rng)
           .sort((a, b) => (log.dex[a] ? 1 : 0) - (log.dex[b] ? 1 : 0))
@@ -218,7 +287,7 @@ export function initQuests({ onNear } = {}) {
     },
     saveObserve(spotId, text, photo) {
       const s = spotById.get(spotId);
-      const ob = s.observe[pickIdx(spotId + 'o', s.observe.length)];
+      const ob = pickObserve(s); // questsFor가 낸 것과 같은 문항이어야 함
       ensureVisit().done.push({ spot: spotId, type: 'observe', text, photo: photo || null, animal: ob.animals?.[0] || null, ts: Date.now() });
       save();
       api.meet(ob.animals); // 만남만 기록 — 발견일지 등재는 퀴즈로만
@@ -236,7 +305,8 @@ export function initQuests({ onNear } = {}) {
     discovery() {
       const v = ensureVisit();
       const def = DISCOVERIES.find((d) => d.id === v.assign.disc);
-      return { def, got: v.disc, done: v.discDone };
+      /* assigned=false면 오늘 배정에서 빠진 것(짧은 체류) — def는 남겨 리캡이 참조할 수 있게 한다 */
+      return { def, got: v.disc, done: v.discDone, assigned: v.assign.discOn !== false };
     },
     addDiscoveryPhoto(animalId, photo) {
       const v = ensureVisit();
@@ -258,12 +328,13 @@ export function initQuests({ onNear } = {}) {
       return { hit, def, got: v.disc, done: v.discDone };
     },
 
-    /* 오늘의 탐험 진행: 배정 스팟 4곳 + 발견 1 */
+    /* 오늘의 탐험 진행: 배정된 스팟 + 발견 1 (체류시간에 따라 개수가 달라진다) */
     todayProgress() {
       const v = ensureVisit();
       const units = [...v.assign.spots, v.assign.dwell];
-      const done = units.filter((id) => api.spotDone(id)).length + (v.discDone ? 1 : 0);
-      return { done, total: units.length + 1 };
+      const discOn = v.assign.discOn !== false;
+      const done = units.filter((id) => api.spotDone(id)).length + (discOn && v.discDone ? 1 : 0);
+      return { done, total: units.length + (discOn ? 1 : 0) };
     },
     questCount() {
       return allDone().filter((d) => ['quiz', 'observe', 'dwell', 'discovery'].includes(d.type)).length;

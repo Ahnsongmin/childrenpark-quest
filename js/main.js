@@ -556,6 +556,7 @@ if (new URLSearchParams(location.search).get('seed') === '1') {
       quests.saveObserve('minivillage', '수달이 돌멩이를 공처럼 굴리며 놀고 있었어요', null);
       const def = quests.discovery().def;
       for (const t of def.targets.slice(0, def.need)) quests.addDiscoveryPhoto(t, null);
+      qui.refresh(); // 주입한 기록을 HUD 진행률에 즉시 반영 (시연 화면이 0/N으로 보이지 않게)
     }
     let tr = null;
     try { tr = JSON.parse(localStorage.getItem('quest.track.v1')); } catch (_) { /* 손상 → 새로 */ }

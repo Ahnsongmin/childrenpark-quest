@@ -140,6 +140,17 @@
     </div>
   </div>
 
+  <div class="panel">
+    <h3>오늘 얼마나 머무를 예정인가요? (탐험 개수를 맞춰 드려요)</h3>
+    <div class="opts" id="stayOpts">
+      <button data-v="60">30분~1시간</button>
+      <button data-v="120">1~2시간</button>
+      <button data-v="180">2~3시간</button>
+      <button data-v="240">3시간 이상</button>
+    </div>
+    <p id="stayNote" style="font-size:12px;color:#6a8a70;margin-top:8px;line-height:1.55"></p>
+  </div>
+
   <button id="saveBtn">✅ 저장하고 지도로!</button>
   <a id="backLink" href="index.html">저장 없이 지도로 돌아가기</a>
 </div>
@@ -155,6 +166,7 @@
 import * as THREE from 'three';
 import { buildAvatar, loadAvatar, saveAvatar, TOPS, BOTTOMS } from './js/character.js';
 import { basesFor, baseImagePath, parseComboId, getCombo } from './js/explorer-types.mjs';
+import { stayBandOf } from './js/mission-score.mjs';
 import { loadJSON, saveJSON } from './js/store.js';
 
 const cfg = loadAvatar();
@@ -278,6 +290,16 @@ const syncAge = () => {
 };
 for (const b of $('ageOpts').children) b.addEventListener('click', () => { profile.age = +b.dataset.v; syncAge(); });
 syncAge();
+
+/* 체류 예정시간 → 오늘 배정할 탐험 개수 (mission-score.mjs가 단일 원천) */
+const syncStay = () => {
+  const cur = profile.stayMin ?? null;
+  for (const b of $('stayOpts').children) b.classList.toggle('sel', cur !== null && +b.dataset.v === cur);
+  const p = stayBandOf(cur);
+  $('stayNote').textContent = `오늘의 탐험 ${p.animal + p.dwell + (p.disc ? 1 : 0)}개를 준비해요 — 동물마을 ${p.animal}곳 · 쉼터 ${p.dwell}곳${p.disc ? ' · 발견 탐험 1개' : ''}`;
+};
+for (const b of $('stayOpts').children) b.addEventListener('click', () => { profile.stayMin = +b.dataset.v; syncStay(); });
+syncStay();
 sync();
 
 $('saveBtn').addEventListener('click', () => {

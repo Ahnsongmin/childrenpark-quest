@@ -83,6 +83,7 @@ export function initQuestUI(quests, opts = {}) {
     for (const q of qs) {
       if (q.type === 'observe') html += observeBlock(spot, q);
       if (q.type === 'dwell') html += dwellBlock(spot, q);
+      if (q.type === 'quiz') html += quizBlock(spot, q);
     }
     if (spot.kind === 'animal') html += freeBlock(spot);
     qSheet.innerHTML = html;
@@ -100,6 +101,13 @@ export function initQuestUI(quests, opts = {}) {
       <textarea id="obsText" rows="2" placeholder="본 것을 자유롭게 적어봐요"></textarea>
       <div class="qrow"><button class="qbtn ghost" id="obsPhoto">📷 사진 붙이기</button><button class="qbtn" id="obsSave">저장</button></div>
       <div id="obsThumb"></div></div>`;
+  }
+  /* 교육 탐험 — 실제 문제는 우리 가까이 갔을 때 동물 단위로 튀어나온다(openAnimalQuiz) */
+  function quizBlock(spot, q) {
+    if (q.done) return `<div class="qcard">🎓 <b>교육 탐험</b> ${doneTag}</div>`;
+    return `<div class="qcard">🎓 <b>교육 탐험</b>
+      <p class="qq">${esc(q.prompt)}</p>
+      <p class="qsub">퀴즈를 풀면 (틀려도 괜찮아요!) 📔 발견일지에 담겨요.</p></div>`;
   }
   function dwellBlock(spot, q) {
     if (q.done) return `<div class="qcard">🍃 <b>쉬어가기</b> ${doneTag}</div>`;
@@ -280,8 +288,8 @@ export function initQuestUI(quests, opts = {}) {
     qSheet.innerHTML = `<div class="grip"></div><h2 style="font-size:18px;color:#223">🧭 오늘의 탐험</h2>
       <p class="qsub">오늘은 이 곳들에서 탐험이 기다리고 있어요. 지도를 보며 천천히 걸어가 봐요!</p>
       ${v.assign.spots.map(row).join('')}${row(v.assign.dwell)}
-      <div class="trow">${d.def.emoji} <b>${esc(d.def.title)}</b><span>${d.done ? '✅ 완료' : `${d.got.length}/${d.def.need} — 공원 어디서든`}</span></div>
-      <p class="qsub" style="margin-top:6px">${esc(d.def.desc)}</p>`;
+      ${d.assigned ? `<div class="trow">${d.def.emoji} <b>${esc(d.def.title)}</b><span>${d.done ? '✅ 완료' : `${d.got.length}/${d.def.need} — 공원 어디서든`}</span></div>
+      <p class="qsub" style="margin-top:6px">${esc(d.def.desc)}</p>` : ''}`;
     qWrap.classList.add('open');
   }
 
