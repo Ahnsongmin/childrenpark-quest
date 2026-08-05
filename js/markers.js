@@ -22,19 +22,20 @@ function markerTexture(lm) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(lm.emoji, 128, 108);
-  // 이름 라벨 (길면 축소)
+  // 이름 라벨 (길면 축소) — 번역문으로 폭을 재야 영어 이름이 잘리지 않는다
+  const label = window.I18N ? window.I18N.t(lm.name) : lm.name;
   let fs = 42;
   ctx.font = `800 ${fs}px "Apple SD Gothic Neo","Malgun Gothic",sans-serif`;
-  while (ctx.measureText(lm.name).width > 244 && fs > 22) {
+  while (ctx.measureText(label).width > 244 && fs > 18) {
     fs -= 2;
     ctx.font = `800 ${fs}px "Apple SD Gothic Neo","Malgun Gothic",sans-serif`;
   }
   ctx.lineWidth = 12;
   ctx.lineJoin = 'round';
   ctx.strokeStyle = '#ffffff';
-  ctx.strokeText(lm.name, 128, 254);
+  ctx.strokeText(label, 128, 254);
   ctx.fillStyle = '#3a5540';
-  ctx.fillText(lm.name, 128, 254);
+  ctx.fillText(label, 128, 254);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -51,6 +52,11 @@ export function createMarkers(scene) {
     sprite.position.set(x, 20, z);
     sprite.userData.lm = lm;
     scene.add(sprite);
+    sprite.userData.refresh = () => {
+      sprite.material.map.dispose();
+      sprite.material.map = markerTexture(lm);
+      sprite.material.needsUpdate = true;
+    };
     const post = new THREE.CylinderGeometry(0.5, 0.5, 9, 6);
     post.translate(x, 4.5, z);
     postGeos.push(post);
@@ -81,6 +87,10 @@ export function createMarkers(scene) {
       m.sprite.position.y = 13 + h * 0.42 + Math.sin(t * 1.6 + m.i * 0.8) * 1.0;
     }
   }
+
+  /* 라벨은 캔버스 텍스처라 언어를 바꿔도 저절로 다시 그려지지 않는다.
+     사전이 준비된 시점(lang-changed)에 텍스처만 새로 굽는다. */
+  window.addEventListener('lang-changed', () => sprites.forEach((s) => s.userData.refresh()));
 
   return { list, sprites, update };
 }

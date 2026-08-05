@@ -178,10 +178,31 @@ function drawCover(ctx, img, x, y, w, h) {
   ctx.restore();
 }
 
-/* 한글 대응 글자 단위 줄바꿈 */
+/* 다국어 — 폭을 재거나 줄바꿈하기 전에 먼저 번역해야 한다(캔버스 훅은 그리는 순간에만 걸린다) */
+export const TR = (s) => (window.I18N ? window.I18N.t(String(s)) : String(s));
+
+/* 한글은 글자 단위, 라틴 문자는 단어 단위로 줄바꿈 */
 function wrapText(ctx, text, maxW, maxLines = 0) {
+  const src = TR(text);
   const lines = []; let line = '';
-  for (const ch of String(text)) {
+  if (!/[가-힣]/.test(src) && src.includes(' ')) {
+    for (const seg of src.split('\n')) {
+      let cur = '';
+      for (const w of seg.split(' ')) {
+        const nxt = cur ? cur + ' ' + w : w;
+        if (cur && ctx.measureText(nxt).width > maxW) { lines.push(cur); cur = w; }
+        else cur = nxt;
+      }
+      lines.push(cur);
+    }
+    if (maxLines && lines.length > maxLines) {
+      const cut = lines.slice(0, maxLines);
+      cut[maxLines - 1] = cut[maxLines - 1].replace(/\s*\S*$/, '') + '…';
+      return cut;
+    }
+    return lines;
+  }
+  for (const ch of src) {
     if (ch === '\n' || ctx.measureText(line + ch).width > maxW) {
       lines.push(line); line = ch === '\n' ? '' : ch;
     } else line += ch;
@@ -237,7 +258,7 @@ function circlePhoto(ctx, img, cx, cy, r, ring = '#fff') {
 
 /* 기여 pill — "소중한 기록이 사육사님께 전달돼요". 관찰·발견 슬라이드 공용 */
 function keeperPill(ctx, y, align = 'left') {
-  const text = '🌱 소중한 기록이 사육사님께 전달돼요';
+  const text = TR('🌱 소중한 기록이 사육사님께 전달돼요');
   ctx.font = `700 42px ${FONT}`;
   const pw = ctx.measureText(text).width + 100;
   const x = align === 'center' ? (W - pw) / 2 : 70;
@@ -468,7 +489,7 @@ function renderCount(ctx, s, imgs, t = Infinity) {
 
   /* 종류별 pill — 숫자가 다 오른 뒤 하나씩 떠오른다 */
   const labels = [['quiz', '🎓 교육'], ['observe', '🔍 관찰'], ['dwell', '🍃 쉬어가기'], ['discovery', '✨ 발견']];
-  const pills = labels.filter(([k]) => s.counts[k] > 0).map(([k, l]) => `${l} ${s.counts[k]}`);
+  const pills = labels.filter(([k]) => s.counts[k] > 0).map(([k, l]) => TR(`${l} ${s.counts[k]}`));
   ctx.font = `700 42px ${FONT}`;
   let y = 1280;
   pills.forEach((text, i) => {
@@ -806,12 +827,20 @@ function renderType(ctx, s, chibiImg, t = Infinity) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = `800 44px ${FONT}`;
   ctx.fillText('오늘 당신의 탐험 유형', W / 2, 250);
-  ctx.fillStyle = '#fff'; ctx.font = `800 92px ${FONT}`;
-  ctx.fillText(`${s.type.animalEmoji} ${s.type.koreanName}`, W / 2, 380);
+  ctx.fillStyle = '#fff';
+  // 유형 이름은 번역하면 길어질 수 있어 폭에 맞춰 줄인다
+  const typeTitle = TR(`${s.type.animalEmoji} ${s.type.koreanName}`);
+  let tfs = 92;
+  ctx.font = `800 ${tfs}px ${FONT}`;
+  while (ctx.measureText(typeTitle).width > W - 120 && tfs > 48) {
+    tfs -= 4;
+    ctx.font = `800 ${tfs}px ${FONT}`;
+  }
+  ctx.fillText(typeTitle, W / 2, 380);
   ctx.font = `700 48px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.9)';
   ctx.fillText(`당신은 ${s.type.koreanName}${iEyo(s.type.koreanName)}!`, W / 2, 452);
   ctx.font = `600 42px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.85)';
-  wrapText(ctx, s.type.description, W - 180, 2).forEach((l, i) => ctx.fillText(l, W / 2, 530 + i * 56));
+  wrapText(ctx, s.type.description, W - 180, 3).forEach((l, i) => ctx.fillText(l, W / 2, 530 + i * 56));
 
   /* 캐릭터 (유형 복장 착용 — 동물 후드·소품). 이미지 비율 유지(contain)·박스 하단 정렬 */
   if (chibiImg) {
@@ -1016,6 +1045,11 @@ function closeStory() {
   $('storyChoice').style.display = 'none';
   renderSeq++;
 }
+
+/* 리캡은 캔버스라 언어를 바꿔도 저절로 다시 그려지지 않는다 — 보고 있던 장면을 다시 그린다 */
+window.addEventListener('lang-changed', () => {
+  if ($('storyWrap') && $('storyWrap').classList.contains('open')) renderSlide(idx);
+});
 
 /* ── 공유 ── */
 async function shareCurrent() {

@@ -119,18 +119,20 @@ function animalTexture(a) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(a.emoji, 128, 120);
+  // 번역문으로 폭을 재야 긴 영어 이름이 잘리지 않는다
+  const label = window.I18N ? window.I18N.t(a.name) : a.name;
   let fs = 40;
   ctx.font = `800 ${fs}px "Apple SD Gothic Neo","Malgun Gothic",sans-serif`;
-  while (ctx.measureText(a.name).width > 244 && fs > 22) {
+  while (ctx.measureText(label).width > 244 && fs > 16) {
     fs -= 2;
     ctx.font = `800 ${fs}px "Apple SD Gothic Neo","Malgun Gothic",sans-serif`;
   }
   ctx.lineWidth = 11;
   ctx.lineJoin = 'round';
   ctx.strokeStyle = '#ffffff';
-  ctx.strokeText(a.name, 128, 262);
+  ctx.strokeText(label, 128, 262);
   ctx.fillStyle = '#3a5540';
-  ctx.fillText(a.name, 128, 262);
+  ctx.fillText(label, 128, 262);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -141,6 +143,9 @@ const lambert = (color) => new THREE.MeshLambertMaterial({ color });
 const seeded = (i, k) => ((i * 2654435761 + k * 97) >>> 0) % 1000 / 1000; // 결정적 배치용
 
 export function createInterior({ renderer, makeChibi, onAnimalTap, onAnimalNear }) {
+  window.addEventListener('lang-changed', () => {
+    sprites.forEach((sp) => sp.userData.refresh && sp.userData.refresh());
+  });
   let scene = null, camera = null, chibi = null, spot = null;
   let area = { W: 110, D: 180 };
   let sprites = [], spriteMeta = [];
@@ -223,6 +228,12 @@ export function createInterior({ renderer, makeChibi, onAnimalTap, onAnimalNear 
       scene.add(sp);
       sprites.push(sp);
       spriteMeta.push({ sp, baseY: 12, i });
+      // 언어를 바꾸면 이름표(캔버스 텍스처)를 다시 굽는다
+      sp.userData.refresh = () => {
+        sp.material.map.dispose();
+        sp.material.map = animalTexture(ANIMALS[aid]);
+        sp.material.needsUpdate = true;
+      };
     });
 
     // 장식: 나무·바위 (결정적 위치, 중앙 길 양옆 남쪽 구간 — 펜과 겹치지 않는 띠)
