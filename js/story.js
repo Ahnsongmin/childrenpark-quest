@@ -49,6 +49,11 @@ async function buildSlides(quests) {
     spotsOnRoute = seen.map((id) => ({ id, name: spotName(id), pos: spotPosOf(id) })).filter((s) => s.pos);
     pts = spotsOnRoute.map((s) => s.pos);
   }
+  /* 동선 위에 얹을 얼굴 — 그 스팟에서 오늘 실제로 만난 동물 1종 */
+  for (const sp of spotsOnRoute) {
+    const inSpot = SPOTS.find((x) => x.id === sp.id)?.animals || [];
+    sp.animal = v.met.find((a) => inSpot.includes(a)) || null;
+  }
   out.push({
     kind: 'stats', n: v.n, date: v.date,
     activeSec: tk.activeSec, distM: tk.distM, places: Object.keys(tk.staySec).length || spotsOnRoute.length,
@@ -57,11 +62,11 @@ async function buildSlides(quests) {
     metCount: r.metCount,
   });
 
-  /* ② 탐험 요약 */
+  /* ② 탐험 요약 — 배경에 깔 오늘 만난 동물들 */
   const cnt = (type) => v.done.filter((d) => d.type === type).length;
   const counts = { quiz: cnt('quiz'), observe: cnt('observe'), dwell: cnt('dwell'), discovery: cnt('discovery') };
   const total = counts.quiz + counts.observe + counts.dwell + counts.discovery;
-  if (total > 0) out.push({ kind: 'count', n: v.n, total, counts });
+  if (total > 0) out.push({ kind: 'count', n: v.n, total, counts, animals: v.met.slice(0, 12) });
 
   /* ③-1 교육 — 오답은 각 1장(복습), 정답은 묶어 1장 */
   const quizzes = v.done.filter((d) => d.type === 'quiz');
@@ -69,7 +74,7 @@ async function buildSlides(quests) {
     const quiz = quests.quizFor(d.animal); // 같은 날엔 결정적으로 같은 문제
     const sameQ = quiz && quiz.q === d.q;
     out.push({
-      kind: 'quizWrong', n: v.n, animal: ANIMALS[d.animal],
+      kind: 'quizWrong', n: v.n, animal: ANIMALS[d.animal], animalId: d.animal,
       q: d.q, explain: d.explain,
       myAnswer: sameQ ? quiz.a[d.choice] : null,
       answer: sameQ ? quiz.a[quiz.correct] : null,
@@ -118,6 +123,7 @@ async function buildSlides(quests) {
     } else {
       out.push({
         kind: 'discPart', n: v.n, def: disc.def, got: v.disc,
+        heroId: v.disc[0] || disc.def.targets[0], // 배경에 깔 동물 — 찾은 친구 우선
         answers: disc.def.targets.map((id) => ({ id, name: ANIMALS[id].name, emoji: ANIMALS[id].emoji, desc: ANIMALS[id].desc, found: v.disc.includes(id) })),
       });
     }
@@ -126,7 +132,7 @@ async function buildSlides(quests) {
   /* ③-4 관찰 — 기여 강조 */
   for (const d of v.done.filter((x) => x.type === 'observe' && x.text)) {
     out.push({
-      kind: 'observe', n: v.n, text: d.text,
+      kind: 'observe', n: v.n, text: d.text, animalId: d.animal || null,
       who: d.animal ? `${ANIMALS[d.animal].emoji} ${ANIMALS[d.animal].name}` : spotName(d.spot),
       spot: spotName(d.spot),
     });
@@ -204,6 +210,47 @@ function bgGradient(ctx, from, to) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
 
+/* 사진 한 장을 화면 전체 배경으로 — 그 위 글씨가 읽히도록 스크림을 덮는다.
+   사진이 아직 안 왔으면 그라데이션만 그리고 끝(레이아웃은 그대로라 깜빡임이 없다). */
+function photoBackdrop(ctx, img, from, to, dim = 0.5) {
+  bgGradient(ctx, from, to);
+  if (!img) return;
+  drawCover(ctx, img, 0, 0, W, H);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, `rgba(6,20,15,${Math.min(0.95, dim + 0.28)})`);
+  g.addColorStop(0.42, `rgba(6,20,15,${dim})`);
+  g.addColorStop(1, `rgba(6,20,15,${Math.min(0.96, dim + 0.34)})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+/* 원형 사진 (동선 위 동물 썸네일 등) */
+function circlePhoto(ctx, img, cx, cy, r, ring = '#fff') {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+  if (img) drawCover(ctx, img, cx - r, cy - r, r * 2, r * 2);
+  else { ctx.fillStyle = '#1d3b30'; ctx.fillRect(cx - r, cy - r, r * 2, r * 2); }
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = ring; ctx.lineWidth = 6; ctx.stroke();
+}
+
+/* 기여 pill — "소중한 기록이 사육사님께 전달돼요". 관찰·발견 슬라이드 공용 */
+function keeperPill(ctx, y, align = 'left') {
+  const text = '🌱 소중한 기록이 사육사님께 전달돼요';
+  ctx.font = `700 42px ${FONT}`;
+  const pw = ctx.measureText(text).width + 100;
+  const x = align === 'center' ? (W - pw) / 2 : 70;
+  ctx.fillStyle = 'rgba(242,160,61,.16)';
+  rrect(ctx, x, y - 62, pw, 96, 48); ctx.fill();
+  ctx.strokeStyle = AMBER; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = AMBER;
+  const prev = ctx.textAlign;
+  ctx.textAlign = 'left';
+  ctx.fillText(text, x + 50, y);
+  ctx.textAlign = prev;
+  return pw;
+}
+
 function watermark(ctx, n) {
   ctx.font = `700 32px ${FONT}`;
   ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255,255,255,.85)';
@@ -254,10 +301,10 @@ function getMiniMap() {
 }
 
 /* ── ① 통계 슬라이드 (동선 배속 재생 + count-up) ── */
-function renderStats(ctx, s, p) {
+function renderStats(ctx, s, p, faces) {
   bgGradient(ctx, '#123D2E', '#0B231C');
   const mm = getMiniMap();
-  ctx.globalAlpha = 0.3;
+  ctx.globalAlpha = 0.42; // 동선이 배경의 주인공이므로 지도를 v13보다 진하게
   ctx.drawImage(mm.canvas, 0, 0);
   ctx.globalAlpha = 1;
 
@@ -300,6 +347,7 @@ function renderStats(ctx, s, p) {
     ctx.stroke();
     /* 스팟 도트 — 경로가 지나가면 팝 */
     const prog = drawn / (totalLen || 1);
+    s._prog = prog; // 상단 동물 얼굴이 같은 타이밍에 뜨도록 공유
     s.spots.forEach((sp, i) => {
       if (prog < sp.frac) return;
       const [dx, dy] = [mm.ox + sp.pos[0] * mm.sc, mm.oy + sp.pos[1] * mm.sc];
@@ -321,6 +369,28 @@ function renderStats(ctx, s, p) {
   ctx.fillStyle = g; ctx.fillRect(0, 300, W, H - 300);
 
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+
+  /* 오늘 만난 친구들 — 큰 숫자와 겹치지 않도록 비어 있는 상단에 한 줄로.
+     동선이 그 스팟을 지나는 순간에 맞춰 하나씩 떠오른다. */
+  const met = s.spots.filter((sp) => sp.animal && faces && faces.get(sp.animal)).slice(0, 5);
+  if (met.length) {
+    const R = 58, gap = 24, step = R * 2 + gap;
+    const x0 = W / 2 - (met.length - 1) * step / 2;
+    met.forEach((sp, i) => {
+      const prog = s._prog ?? 1;
+      if (prog < (sp.frac ?? 0)) return;
+      const pop = easeOut(Math.min(1, (prog - (sp.frac ?? 0)) * 8));
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6;
+      circlePhoto(ctx, faces.get(sp.animal), x0 + i * step, 330, R * pop, 'rgba(255,255,255,.95)');
+      ctx.restore();
+    });
+    ctx.font = `600 34px ${FONT}`; ctx.fillStyle = 'rgba(251,246,233,.65)';
+    ctx.textAlign = 'center';
+    ctx.fillText('오늘 만난 친구들', W / 2, 452);
+    ctx.textAlign = 'left';
+  }
+
   eyebrow(ctx, '오늘 당신은', 560);
 
   const stat = (num, label, y, color, ph) => {
@@ -361,8 +431,34 @@ function renderStats(ctx, s, p) {
 }
 
 /* ── ② 탐험 요약 ── */
-function renderCount(ctx, s) {
+function renderCount(ctx, s, imgs) {
   bgGradient(ctx, '#2e6b34', '#164a22');
+
+  /* 배경 = 오늘 만난 동물들의 사진 모자이크. 사진이 없으면 그라데이션만(레이아웃 동일) */
+  const pics = (imgs || []).filter(Boolean);
+  if (pics.length) {
+    const COLS = 3, ROWS = 4, cw = W / COLS, ch = H / ROWS;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const img = pics[(r * COLS + c) % pics.length];
+        ctx.save();
+        ctx.beginPath(); ctx.rect(c * cw, r * ch, cw, ch); ctx.clip();
+        drawCover(ctx, img, c * cw, r * ch, cw, ch);
+        ctx.restore();
+      }
+    }
+    /* 타일 경계를 살짝 남기면 모자이크로 읽힌다 */
+    ctx.strokeStyle = 'rgba(10,26,20,.55)'; ctx.lineWidth = 6;
+    for (let c = 1; c < COLS; c++) { ctx.beginPath(); ctx.moveTo(c * cw, 0); ctx.lineTo(c * cw, H); ctx.stroke(); }
+    for (let r = 1; r < ROWS; r++) { ctx.beginPath(); ctx.moveTo(0, r * ch); ctx.lineTo(W, r * ch); ctx.stroke(); }
+    /* 숫자가 주인공이므로 가운데를 가장 어둡게 */
+    const g = ctx.createRadialGradient(W / 2, H / 2, 120, W / 2, H / 2, H * 0.72);
+    g.addColorStop(0, 'rgba(12,42,28,.93)');
+    g.addColorStop(0.55, 'rgba(12,42,28,.82)');
+    g.addColorStop(1, 'rgba(8,28,20,.62)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#fff';
   ctx.font = `700 60px ${FONT}`;
   ctx.fillText('오늘 총', W / 2, 660);
@@ -384,12 +480,18 @@ function renderCount(ctx, s) {
     ctx.fillText(text, W / 2, y);
     y += 112;
   }
+  /* 배경이 무엇인지 한 줄로 알려준다 — 그래야 모자이크가 장식이 아니라 기록으로 읽힌다 */
+  if (s.animals?.length) {
+    ctx.font = `600 40px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.72)';
+    ctx.fillText(`🐾 오늘 만난 친구 ${s.animals.length}종`, W / 2, Math.min(y + 30, H - 220));
+  }
   watermark(ctx, s.n);
 }
 
 /* ── ③-1 교육 (오답 복습) ── */
-function renderQuizWrong(ctx, s) {
-  bgGradient(ctx, '#1A4A5C', '#0E2A2E');
+function renderQuizWrong(ctx, s, img) {
+  /* 배경 = 문제의 주인공 동물. 글이 아니라 그 친구를 다시 떠올리게 하는 게 복습에 낫다 */
+  photoBackdrop(ctx, img, '#1A4A5C', '#0E2A2E', 0.52);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   eyebrow(ctx, '🎓 오늘 배운 것', 300, SKY);
   ctx.fillStyle = CREAM; ctx.font = `800 66px ${FONT}`;
@@ -399,9 +501,9 @@ function renderQuizWrong(ctx, s) {
   qLines.forEach((l, i) => ctx.fillText(l, 70, 520 + i * 82));
   let y = 520 + qLines.length * 82 + 60;
 
-  /* 내 답 / 정답 박스 */
+  /* 내 답 / 정답 박스 — 사진 위라 v13(.28)보다 진하게 깔아야 읽힌다 */
   if (s.myAnswer !== null) {
-    ctx.fillStyle = 'rgba(0,0,0,.28)';
+    ctx.fillStyle = 'rgba(4,16,13,.52)';
     rrect(ctx, 70, y, W - 140, 240, 30); ctx.fill();
     ctx.strokeStyle = 'rgba(251,246,233,.16)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.font = `600 44px ${FONT}`;
@@ -528,52 +630,55 @@ function renderDwell(ctx, s, photo, nextPhoto) {
 
 /* ── ③-3 발견 완성 (사진 촤라락) ── */
 function renderDiscOk(ctx, s, imgs, cur, fade) {
+  /* 찾아낸 친구가 화면 전체를 채운다 — 액자 안에 갇힌 카드보다 "찾았다"가 살아난다 */
+  const item = s.items[cur];
+  const img = imgs[cur];
   bgGradient(ctx, '#1B4332', '#0A1F1A');
+  if (img) {
+    ctx.globalAlpha = fade;
+    drawCover(ctx, img, 0, 0, W, H);
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `520px ${FONT}`; ctx.globalAlpha = fade;
+    ctx.fillText(item.emoji, W / 2, H / 2);
+    ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+  }
+  /* 위/아래만 어둡게 — 가운데 동물은 그대로 보이게 */
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, 'rgba(6,20,15,.86)');
+  g.addColorStop(0.26, 'rgba(6,20,15,.28)');
+  g.addColorStop(0.6, 'rgba(6,20,15,.32)');
+  g.addColorStop(1, 'rgba(6,20,15,.92)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = AMBER; ctx.font = `800 44px ${FONT}`;
   ctx.fillText('✨ 발견 탐험 완성!', W / 2, 240);
   ctx.fillStyle = CREAM; ctx.font = `800 72px ${FONT}`;
   ctx.fillText(`${s.def.emoji} ${s.def.title}`, W / 2, 340);
 
-  /* 큰 사진 프레임 — 순차 전환 */
-  const py = 420, ph2 = 1000;
-  ctx.save();
-  rrect(ctx, 90, py, W - 180, ph2, 40); ctx.clip();
-  ctx.fillStyle = '#10241c'; ctx.fillRect(90, py, W - 180, ph2);
-  const item = s.items[cur];
-  const img = imgs[cur];
-  ctx.globalAlpha = fade;
-  if (img) drawCover(ctx, img, 90, py, W - 180, ph2);
-  else {
-    ctx.font = `420px ${FONT}`; ctx.textBaseline = 'middle';
-    ctx.fillText(item.emoji, W / 2, py + ph2 / 2);
-    ctx.textBaseline = 'alphabetic';
-  }
-  ctx.globalAlpha = 1;
-  /* 하단 이름 배지 */
-  const lg = ctx.createLinearGradient(0, py + ph2 - 220, 0, py + ph2);
-  lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(1, 'rgba(0,0,0,.65)');
-  ctx.fillStyle = lg; ctx.fillRect(90, py + ph2 - 220, W - 180, 220);
-  ctx.fillStyle = '#fff'; ctx.font = `800 60px ${FONT}`;
-  ctx.fillText(`${item.emoji} ${item.name}`, W / 2, py + ph2 - 70);
-  ctx.restore();
+  /* 지금 보이는 친구 이름 */
+  ctx.fillStyle = '#fff'; ctx.font = `800 72px ${FONT}`;
+  ctx.fillText(`${item.emoji} ${item.name}`, W / 2, 1360);
 
   /* 진행 도트 */
   const n = s.items.length;
   s.items.forEach((_, i) => {
-    ctx.fillStyle = i === cur ? AMBER : 'rgba(251,246,233,.3)';
+    ctx.fillStyle = i === cur ? AMBER : 'rgba(251,246,233,.35)';
     ctx.beginPath();
-    ctx.arc(W / 2 + (i - (n - 1) / 2) * 56, 1510, i === cur ? 14 : 10, 0, Math.PI * 2);
+    ctx.arc(W / 2 + (i - (n - 1) / 2) * 56, 1440, i === cur ? 14 : 10, 0, Math.PI * 2);
     ctx.fill();
   });
-  ctx.fillStyle = 'rgba(251,246,233,.7)'; ctx.font = `600 40px ${FONT}`;
-  ctx.fillText(`${s.items.map((x) => x.emoji).join(' ')} 모두 찾았어요!`, W / 2, 1620);
+  ctx.fillStyle = 'rgba(251,246,233,.78)'; ctx.font = `600 40px ${FONT}`;
+  ctx.fillText(`${s.items.map((x) => x.emoji).join(' ')} 모두 찾았어요!`, W / 2, 1540);
+  keeperPill(ctx, 1680, 'center');
   watermark(ctx, s.n);
 }
 
 /* ── ③-3' 발견 부분 수행 (정답 공개) ── */
-function renderDiscPart(ctx, s) {
-  bgGradient(ctx, '#1B4332', '#0A1F1A');
+function renderDiscPart(ctx, s, img) {
+  photoBackdrop(ctx, img, '#1B4332', '#0A1F1A', 0.58);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   eyebrow(ctx, '✨ 발견 탐험', 260, AMBER);
   ctx.fillStyle = CREAM; ctx.font = `800 72px ${FONT}`;
@@ -586,7 +691,7 @@ function renderDiscPart(ctx, s) {
   let y = 640;
   for (const a of s.answers.slice(0, 5)) {
     const rh = 190;
-    ctx.fillStyle = a.found ? 'rgba(82,183,136,.16)' : 'rgba(0,0,0,.24)';
+    ctx.fillStyle = a.found ? 'rgba(82,183,136,.26)' : 'rgba(4,16,13,.5)'; // 사진 위라 진하게
     rrect(ctx, 70, y, W - 140, rh, 26); ctx.fill();
     if (a.found) { ctx.strokeStyle = FERN; ctx.lineWidth = 3; ctx.stroke(); }
     ctx.font = `84px ${FONT}`;
@@ -597,14 +702,15 @@ function renderDiscPart(ctx, s) {
     wrapText(ctx, a.desc, W - 140 - 190, 2).forEach((l, i) => ctx.fillText(l, 230, y + 128 + i * 44));
     y += rh + 22;
   }
-  ctx.fillStyle = 'rgba(251,246,233,.6)'; ctx.font = `600 38px ${FONT}`;
-  ctx.fillText('다음 방문엔 모두 찾아봐요! 📷', 70, Math.min(y + 60, H - 150));
+  ctx.fillStyle = 'rgba(251,246,233,.72)'; ctx.font = `600 38px ${FONT}`;
+  ctx.fillText('다음 방문엔 모두 찾아봐요! 📷', 70, Math.min(y + 60, H - 260));
+  keeperPill(ctx, H - 150);
   watermark(ctx, s.n);
 }
 
 /* ── ③-4 관찰 (기여 강조) ── */
-function renderObserve(ctx, s) {
-  bgGradient(ctx, '#2F5D3A', '#0E2A22');
+function renderObserve(ctx, s, img) {
+  photoBackdrop(ctx, img, '#2F5D3A', '#0E2A22', 0.56); // 지켜본 그 친구를 배경에
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   eyebrow(ctx, '🔍 오늘의 관찰 기록', 330);
   ctx.fillStyle = CREAM; ctx.font = `800 64px ${FONT}`;
@@ -616,7 +722,7 @@ function renderObserve(ctx, s) {
   const tLines = wrapText(ctx, `“${s.text}”`, W - 260, 6);
   const boxH = 110 + tLines.length * 70 + 60;
   const by = 640;
-  ctx.fillStyle = 'rgba(0,0,0,.26)';
+  ctx.fillStyle = 'rgba(4,16,13,.5)'; // 사진 위라 진하게
   rrect(ctx, 70, by, W - 140, boxH, 34); ctx.fill();
   ctx.strokeStyle = 'rgba(251,246,233,.16)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = 'rgba(251,246,233,.55)'; ctx.font = `600 36px ${FONT}`;
@@ -624,16 +730,8 @@ function renderObserve(ctx, s) {
   ctx.fillStyle = CREAM; ctx.font = `600 48px ${FONT}`;
   tLines.forEach((l, i) => ctx.fillText(l, 120, by + 150 + i * 70));
 
-  let y = by + boxH + 120;
-  /* 기여 pill */
-  ctx.font = `700 42px ${FONT}`;
-  const pillText = '🌱 소중한 기록이 사육사님께 전달돼요';
-  const pw = ctx.measureText(pillText).width + 100;
-  ctx.fillStyle = 'rgba(242,160,61,.16)';
-  rrect(ctx, 70, y - 62, pw, 96, 48); ctx.fill();
-  ctx.strokeStyle = AMBER; ctx.lineWidth = 3; ctx.stroke();
-  ctx.fillStyle = AMBER;
-  ctx.fillText(pillText, 120, y);
+  const y = by + boxH + 120;
+  keeperPill(ctx, y);
   ctx.fillStyle = 'rgba(251,246,233,.72)'; ctx.font = `600 42px ${FONT}`;
   wrapText(ctx, '어린이 탐험가들의 기록이 모여 동물 친구들의 건강을 지키는 데 큰 힘이 된답니다.', W - 160, 3)
     .forEach((l, i) => ctx.fillText(l, 70, y + 110 + i * 62));
@@ -776,20 +874,36 @@ async function renderSlide(i) {
   } else choice.style.display = 'none';
 
   if (s.kind === 'stats') {
+    /* 동선 위 동물 얼굴을 먼저 확보한 뒤 재생 — 애니메이션 중 이미지가 늦게 뜨는 걸 막는다 */
+    const faces = new Map();
+    for (const sp of s.spots) {
+      if (!sp.animal || faces.has(sp.animal)) continue;
+      faces.set(sp.animal, await cachedImg(`img/animals/${sp.animal}.jpg`));
+    }
+    if (seq !== renderSeq) return;
     const t0 = performance.now(), DUR = 5000;
     const step = (now) => {
       if (seq !== renderSeq) return;
       const p = Math.min(1, (now - t0) / DUR);
       ctx.clearRect(0, 0, W, H);
-      renderStats(ctx, s, p);
+      renderStats(ctx, s, p, faces);
       if (p < 1) requestAnimationFrame(step);
       else cacheBlob(i, seq);
     };
     requestAnimationFrame(step);
   } else if (s.kind === 'count') {
-    renderCount(ctx, s); cacheBlob(i, seq);
+    renderCount(ctx, s, null); // 1차: 그라데이션으로 즉시 → 사진 오면 재렌더
+    const imgs = [];
+    for (const id of s.animals || []) imgs.push(await cachedImg(`img/animals/${id}.jpg`));
+    if (seq !== renderSeq) return;
+    ctx.clearRect(0, 0, W, H);
+    renderCount(ctx, s, imgs); cacheBlob(i, seq);
   } else if (s.kind === 'quizWrong') {
-    renderQuizWrong(ctx, s); cacheBlob(i, seq);
+    renderQuizWrong(ctx, s, null);
+    const img = s.animalId ? await cachedImg(`img/animals/${s.animalId}.jpg`) : null;
+    if (seq !== renderSeq) return;
+    ctx.clearRect(0, 0, W, H);
+    renderQuizWrong(ctx, s, img); cacheBlob(i, seq);
   } else if (s.kind === 'quizRight') {
     renderQuizRight(ctx, s); cacheBlob(i, seq);
   } else if (s.kind === 'dwell') {
@@ -825,9 +939,17 @@ async function renderSlide(i) {
     };
     requestAnimationFrame(step);
   } else if (s.kind === 'discPart') {
-    renderDiscPart(ctx, s); cacheBlob(i, seq);
+    renderDiscPart(ctx, s, null);
+    const img = s.heroId ? await cachedImg(`img/animals/${s.heroId}.jpg`) : null;
+    if (seq !== renderSeq) return;
+    ctx.clearRect(0, 0, W, H);
+    renderDiscPart(ctx, s, img); cacheBlob(i, seq);
   } else if (s.kind === 'observe') {
-    renderObserve(ctx, s); cacheBlob(i, seq);
+    renderObserve(ctx, s, null);
+    const img = s.animalId ? await cachedImg(`img/animals/${s.animalId}.jpg`) : null;
+    if (seq !== renderSeq) return;
+    ctx.clearRect(0, 0, W, H);
+    renderObserve(ctx, s, img); cacheBlob(i, seq);
   } else if (s.kind === 'best') {
     renderBest(ctx, s); cacheBlob(i, seq);
   } else if (s.kind === 'type') {
@@ -927,6 +1049,10 @@ export async function openStory(quests) {
   for (const s of slides) {
     if (s.kind === 'dwell') { cachedImg(`img/spots/${s.spotId}.jpg`); cachedImg(`img/spots/${s.next.id}.jpg`); }
     if (s.kind === 'discOk') s.items.forEach((it) => cachedImg(`img/animals/${it.id}.jpg`));
+    if (s.kind === 'discPart' && s.heroId) cachedImg(`img/animals/${s.heroId}.jpg`);
+    if ((s.kind === 'quizWrong' || s.kind === 'observe') && s.animalId) cachedImg(`img/animals/${s.animalId}.jpg`);
+    if (s.kind === 'count') (s.animals || []).forEach((id) => cachedImg(`img/animals/${id}.jpg`));
+    if (s.kind === 'stats') s.spots.forEach((sp) => sp.animal && cachedImg(`img/animals/${sp.animal}.jpg`));
   }
 
   $('storyWrap').classList.add('open');
