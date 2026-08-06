@@ -6,6 +6,13 @@ import { prj } from './geo.js';
 
 const CW = 256, CH = 320; // 캔버스: 위 원형 배지 + 아래 이름 라벨
 
+/* 지명 라벨은 캔버스 텍스처라 .fsc(zoom)가 닿지 않는다 — 글씨 크기 단계와 같은 배율로 마커를 키운다.
+   index.html의 html.fs1/.fs2 배율(1.15 / 1.32)과 값을 맞춰 둘 것. */
+function fontScale() {
+  const c = document.documentElement.classList;
+  return c.contains('fs2') ? 1.32 : c.contains('fs1') ? 1.15 : 1;
+}
+
 function markerTexture(lm) {
   const c = document.createElement('canvas');
   c.width = CW; c.height = CH;
@@ -78,10 +85,11 @@ export function createMarkers(scene) {
   postGeos.concat(blobGeos).forEach((g) => g.dispose());
 
   function update(t, camera) {
+    const fs = fontScale(); // 프레임마다 한 번만 읽는다
     for (const m of list) {
       // 통통 뜨는 배지 + 거리 기반 크기 클램프 (멀어도 너무 작아지지 않게)
       const d = camera.position.distanceTo(m.sprite.position);
-      let h = Math.min(46, Math.max(17, d * 0.082));
+      let h = Math.min(46, Math.max(17, d * 0.082)) * fs;
       if (m.pop > 0) { h *= 1 + m.pop * 0.45; m.pop = Math.max(0, m.pop - 0.03); }
       m.sprite.scale.set(h * CW / CH, h, 1);
       m.sprite.position.y = 13 + h * 0.42 + Math.sin(t * 1.6 + m.i * 0.8) * 1.0;

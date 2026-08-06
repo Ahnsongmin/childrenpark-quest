@@ -201,12 +201,15 @@
     const st = document.createElement('style');
     st.id = 'i18nCss';
     st.textContent = `
-      #langBtn { position: absolute; right: 14px; bottom: 488px; z-index: 5;
-        width: 48px; height: 48px; border-radius: 50%; border: 0; background: #fff;
-        font-size: 20px; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.2); }
-      #langBtn b { display: block; font-size: 9px; font-weight: 800; color: #2e6b34;
-        margin-top: -3px; letter-spacing: -.3px; }
-      body.i18nPage #langBtn { position: fixed; bottom: 20px; right: 16px; }
+      /* ❓ 도움말 · 가 글씨 크기 옆 세 번째 자리. .fsc를 붙이지 않으므로 글씨를 키워도 밀리지 않는다 */
+      #langBtn { position: absolute; left: 96px; top: 66px; z-index: 5;
+        width: 34px; height: 34px; border-radius: 50%; border: 0; background: #ffffffee;
+        font-size: 15px; line-height: 1; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+      #langBtn b { display: block; font-size: 8px; font-weight: 800; color: #2e6b34;
+        margin-top: -2px; letter-spacing: -.3px; }
+      body.i18nPage #langBtn { position: fixed; top: auto; left: auto; bottom: 20px; right: 16px;
+        width: 48px; height: 48px; font-size: 20px; }
+      body.i18nPage #langBtn b { font-size: 9px; margin-top: -3px; }
       #langWrap { position: fixed; inset: 0; z-index: 60; display: none; }
       #langWrap.on { display: block; }
       #langBack { position: absolute; inset: 0; background: rgba(0,0,0,.35); }
@@ -233,8 +236,7 @@
     styleOnce();
     if (document.getElementById('langBtn')) return;
     const btn = document.createElement('button');
-    btn.id = 'langBtn';
-    btn.className = 'fsc';
+    btn.id = 'langBtn'; // .fsc 없음 — zoom이 걸리면 top/left가 함께 커져 버튼이 제자리를 벗어난다
     btn.setAttribute('aria-label', 'Language / 언어 선택');
     btn.innerHTML = '🌐<b></b>';
     (document.getElementById('frame') || document.body).appendChild(btn);

@@ -926,13 +926,16 @@ async function renderSlide(i) {
 
   /* 유형 변경 선택 버튼 표시/숨김 */
   const choice = $('storyChoice');
-  if (s.kind === 'type' && s.offerChoice) {
+  const offering = s.kind === 'type' && s.offerChoice;
+  if (offering) {
     const ro = euRo(s.type.koreanName);
     $('choiceNew').textContent = s.justUnlocked
       ? `✨ 새로 해금된 ${s.type.koreanName}${ro} 바꾸기`
       : `✨ ${s.type.propEmoji} ${s.type.koreanName}${ro} 바꾸기`;
-    choice.style.display = 'flex';
-  } else choice.style.display = 'none';
+  }
+  choice.style.display = offering ? 'flex' : 'none';
+  /* 선택 버튼이 뜨는 동안엔 캔버스를 줄여 아래에 자리를 만든다 — 버튼이 글자를 덮지 않게 */
+  $('storyWrap').classList.toggle('choosing', offering);
 
   if (s.kind === 'stats') {
     /* 동선 위 동물 얼굴을 먼저 확보한 뒤 재생 — 애니메이션 중 이미지가 늦게 뜨는 걸 막는다 */
@@ -1041,7 +1044,7 @@ function go(dir) {
 }
 
 function closeStory() {
-  $('storyWrap').classList.remove('open');
+  $('storyWrap').classList.remove('open', 'choosing');
   $('storyChoice').style.display = 'none';
   renderSeq++;
 }

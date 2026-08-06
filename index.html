@@ -36,12 +36,15 @@
     box-shadow: 0 2px 8px rgba(0,0,0,.15); pointer-events: none;
   }
   #title small { display: block; font-size: 10px; font-weight: 600; color: #7ba381; }
-  #helpBtn {
-    position: absolute; top: 66px; left: 12px; z-index: 5;
+  /* 도움말 옆 보조 버튼 줄 — ❓ 도움말 · 가 글씨 크기 · 🌐 언어 (#langBtn 규칙은 js/i18n.js에 있다).
+     글씨를 키워도 자리가 밀리면 안 되므로 이 셋에는 .fsc(zoom)를 붙이지 않는다. */
+  #helpBtn, #fontBtn {
+    position: absolute; top: 66px; z-index: 5;
     width: 34px; height: 34px; border-radius: 50%; border: 0;
     background: #ffffffee; font-size: 16px; cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,.15);
   }
+  #helpBtn { left: 12px; }
 
   /* 공원 밖 배너 */
   #banner {
@@ -93,7 +96,7 @@
   #permLater { background: #f0f4ee; color: #667; }
 
   /* 우측 버튼 스택 */
-  #locBtn, #walkBtn, #famBtn, #dressBtn, #recBtn, #chatBtn, #fontBtn {
+  #locBtn, #walkBtn, #famBtn, #dressBtn, #recBtn, #chatBtn {
     position: absolute; right: 14px; z-index: 5;
     width: 48px; height: 48px; border-radius: 50%; border: 0;
     background: #fff; font-size: 22px; cursor: pointer;
@@ -105,11 +108,17 @@
   #dressBtn { bottom: 264px; }
   #recBtn { bottom: 320px; }
   #chatBtn { bottom: 376px; background: #fff; }
-  #fontBtn { bottom: 432px; font-weight: 800; color: #2e6b34; font-size: 17px; }
+  #fontBtn { left: 54px; font-weight: 800; color: #2e6b34; }
 
-  /* 글씨 크기 조절 — 텍스트 UI(.fsc)만 확대, 지도·캐릭터(캔버스)는 그대로 */
+  /* 글씨 크기 조절 — 텍스트 UI(.fsc)만 확대, 지도·캐릭터(캔버스)는 그대로.
+     지도 위 지명 라벨은 캔버스라 zoom이 닿지 않는다 — js/markers.js가 같은 배율로 스프라이트를 키운다. */
   html.fs1 .fsc { zoom: 1.15; }
   html.fs2 .fsc { zoom: 1.32; }
+  /* 글씨를 키우면 '오늘의 탐험' 카드가 높아져 우측 버튼과 겹친다 — 버튼 열만큼 폭을 비운다 */
+  html.fs1 #hud, html.fs2 #hud { right: 74px; }
+  /* 타이틀 카드도 함께 커지므로 ❓·가·🌐 줄을 그만큼 내린다 (타이틀 아래 62/71/81px) */
+  html.fs1 #helpBtn, html.fs1 #fontBtn, html.fs1 #langBtn { top: 76px; }
+  html.fs2 #helpBtn, html.fs2 #fontBtn, html.fs2 #langBtn { top: 86px; }
   #locBtn.on { background: #3b82f6; }
   #walkBtn.on { background: #f5b83d; }
   #famBtn.on { background: #7ed695; }
@@ -383,9 +392,10 @@
   }
 
   /* 오늘의 리캡 스토리 (인스타 스토리형) */
+  /* 캔버스를 위로 붙이고 아래를 버튼 자리로 비운다 — 버튼이 슬라이드 글자를 덮지 않게 */
   #storyWrap {
     position: absolute; inset: 0; z-index: 20; display: none;
-    background: #111; flex-direction: column; align-items: center; justify-content: center;
+    background: #111; flex-direction: column; align-items: center; justify-content: flex-start;
   }
   #storyWrap.open { display: flex; }
   #storyBars { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 3; display: flex; gap: 4px; }
@@ -397,7 +407,10 @@
     background: #0006; color: #fff; font-size: 16px; width: 36px; height: 36px;
     border-radius: 50%; cursor: pointer;
   }
-  #storyCv { height: 100%; max-height: 100%; max-width: 100%; aspect-ratio: 9 / 16; object-fit: contain; }
+  /* 아래 76px은 공유 버튼 자리 — 선택 버튼이 뜨는 동안엔 112px까지 넓힌다 */
+  #storyCv { height: calc(100% - 76px); width: auto; max-width: 100%; aspect-ratio: 9 / 16; object-fit: contain; }
+  #storyWrap.choosing #storyCv { height: calc(100% - 112px); }
+  #storyWrap.choosing #storyShare { display: none; } /* 선택을 마치면 다시 나타난다 */
   #storyHit { position: absolute; inset: 0; z-index: 2; touch-action: none; cursor: pointer; }
   #storyShare {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 3;
@@ -407,12 +420,12 @@
   }
   /* 유형 슬라이드 — 새 유형 외형 선택 (다회차) */
   #storyChoice {
-    position: absolute; bottom: 84px; left: 16px; right: 16px; z-index: 3;
+    position: absolute; bottom: 18px; left: 16px; right: 16px; z-index: 3;
     display: none; gap: 10px;
   }
   #storyChoice button {
     flex: 1; border: 0; border-radius: 16px; padding: 13px 8px;
-    font-size: 13.5px; font-weight: 800; cursor: pointer;
+    font-size: 13.5px; font-weight: 800; cursor: pointer; word-break: keep-all; /* '바꾸/기'로 쪼개지지 않게 */
     box-shadow: 0 4px 14px rgba(0,0,0,.4);
   }
   #choiceKeep { background: #ffffffd9; color: #445; }
@@ -657,7 +670,7 @@ if ('serviceWorker' in navigator) {
 (function () {
   const KEY = 'quest.fontscale.v1';
   const LABELS = ['보통', '크게', '아주 크게'];
-  const BTN_PX = ['17px', '21px', '25px']; // 버튼의 '가' 크기로 현재 단계 표시
+  const BTN_PX = ['15px', '18px', '21px']; // 버튼의 '가' 크기로 현재 단계 표시 (34px 버튼에 맞춤)
   const btn = document.getElementById('fontBtn');
   let lv = Math.min(2, Math.max(0, parseInt(localStorage.getItem(KEY), 10) || 0));
   function apply() {
