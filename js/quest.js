@@ -175,7 +175,8 @@ export function initQuests({ onNear } = {}) {
     },
 
     /* 만남(v.met): 사진·한 줄·퀴즈·관찰 어떤 활동이든 기록 — 오늘의 리캡에 나옴.
-       발견일지(log.dex) 등재는 🎓 퀴즈를 풀었을 때만 (dex=true, 오답도 인정) */
+       발견일지(log.dex) 등재는 두 경로뿐 (dex=true) —
+       ① 🎓 퀴즈를 풀었을 때(오답도 인정)  ② ✨ 발견 탐험 대상 동물을 사진으로 찾았을 때 */
     meet(animalIds, dex = false) {
       const v = ensureVisit();
       const fresh = [];
@@ -290,13 +291,13 @@ export function initQuests({ onNear } = {}) {
       const ob = pickObserve(s); // questsFor가 낸 것과 같은 문항이어야 함
       ensureVisit().done.push({ spot: spotId, type: 'observe', text, photo: photo || null, animal: ob.animals?.[0] || null, ts: Date.now() });
       save();
-      api.meet(ob.animals); // 만남만 기록 — 발견일지 등재는 퀴즈로만
+      api.meet(ob.animals); // 만남만 기록 — 등재는 퀴즈·발견 탐험으로만
     },
     completeDwell(spotId, text) {
       ensureVisit().done.push({ spot: spotId, type: 'dwell', text, ts: Date.now() });
       save();
     },
-    saveFreeNote(spotId, text, photo, animalId) { // 자유 기록(한줄) — 만남만 기록, 발견일지 등재는 퀴즈로만
+    saveFreeNote(spotId, text, photo, animalId) { // 자유 기록(한줄) — 만남만 기록, 등재는 퀴즈·발견 탐험으로만
       ensureVisit().done.push({ spot: spotId, type: 'note', text, photo: photo || null, animal: animalId || null, ts: Date.now() });
       save();
       if (animalId) api.meet([animalId]);
@@ -308,15 +309,17 @@ export function initQuests({ onNear } = {}) {
       /* assigned=false면 오늘 배정에서 빠진 것(짧은 체류) — def는 남겨 리캡이 참조할 수 있게 한다 */
       return { def, got: v.disc, done: v.discDone, assigned: v.assign.discOn !== false };
     },
+    /* 발견 탐험 대상 동물을 사진으로 찾아내면 🎓 퀴즈와 똑같이 발견일지에 등재한다.
+       대상이 아닌 동물의 자유 사진은 만남만 기록 — 아무 사진이나 등재되면 도감이 한 번에 차서
+       "다음에 또 와서 채운다"는 재방문 동기가 사라지기 때문. */
     addDiscoveryPhoto(animalId, photo) {
       const v = ensureVisit();
       const { def } = api.discovery();
-      api.meet([animalId]); // 만남만 기록 — 발견일지 등재는 퀴즈로만
+      const hit = def.targets.includes(animalId) && !v.disc.includes(animalId);
+      const newAnimals = api.meet([animalId], hit); // 발견 탐험 대상이면 dex=true
       if (photo && log.dex[animalId] && !log.dex[animalId].photo) log.dex[animalId].photo = photo;
-      let hit = false;
-      if (def.targets.includes(animalId) && !v.disc.includes(animalId)) {
+      if (hit) {
         v.disc.push(animalId);
-        hit = true;
         if (v.disc.length >= def.need && !v.discDone) {
           v.discDone = true;
           v.done.push({ spot: null, type: 'discovery', disc: def.id, ts: Date.now() });
@@ -325,7 +328,7 @@ export function initQuests({ onNear } = {}) {
         v.done.push({ spot: null, type: 'photo', animal: animalId, photo, ts: Date.now() });
       }
       save();
-      return { hit, def, got: v.disc, done: v.discDone };
+      return { hit, def, got: v.disc, done: v.discDone, newAnimals };
     },
 
     /* 오늘의 탐험 진행: 배정된 스팟 + 발견 1 (체류시간에 따라 개수가 달라진다) */

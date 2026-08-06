@@ -189,12 +189,14 @@ export function initQuestUI(quests, opts = {}) {
     let html = `<div class="grip"></div><h2 style="font-size:17px;color:#223">${a.emoji} ${esc(a.name)}</h2>
       <p style="margin-top:8px;font-size:14px;line-height:1.6;color:#445">${esc(a.desc)}</p>`;
     if (r.hit) {
-      html += `<div class="qexplain" style="display:block">✨ <b>${r.def.emoji} ${esc(r.def.title)}</b> ${r.got.length}/${r.def.need} 발견!${r.done ? '<br>🎉 오늘의 발견 탐험 완성!' : ''}</div>`;
+      html += `<div class="qexplain" style="display:block">✨ <b>${r.def.emoji} ${esc(r.def.title)}</b> ${r.got.length}/${r.def.need} 발견!${r.done ? '<br>🎉 오늘의 발견 탐험 완성!' : ''}`
+        + `${r.newAnimals.length ? `<br>📔 <b>${aNames(r.newAnimals)}</b> 발견일지에 담겼어요!` : ''}</div>`;
     }
-    html += '<p class="qsub">📷 사진을 남겼어요 — 오늘의 리캡에 나와요! 📔 발견일지는 🎓 퀴즈를 풀면 채워져요.</p>';
+    html += '<p class="qsub">📷 사진을 남겼어요 — 오늘의 리캡에 나와요! 📔 발견일지는 🎓 퀴즈를 풀거나 ✨ 발견 탐험 친구를 사진으로 찾으면 채워져요.</p>';
     qSheet.innerHTML = html;
     qWrap.classList.add('open');
     renderHud();
+    if (r.newAnimals.length) toast(`📔 ${aNames(r.newAnimals)} 발견!`);
     if (r.done) {
       toast(`🎉 발견 탐험 "${r.def.title}" 완성!`);
       window.dispatchEvent(new CustomEvent('quest-celebrate')); // 지도 캐릭터 축하 점프
@@ -325,7 +327,7 @@ export function initQuestUI(quests, opts = {}) {
       <div class="dexgrid">${list.map((a) => a.met
         ? `<div class="dexcell" data-a="${a.id}"><div class="dexemo">${a.emoji}</div><div class="dexname">${esc(a.name)}</div><div class="dexdate">${a.met.first.slice(5)}</div></div>`
         : `<div class="dexcell locked"><div class="dexemo">❔</div><div class="dexname">???</div></div>`).join('')}</div>
-      <p class="qsub">매일 마을마다 한두 친구가 🎓 퀴즈를 준비해요! 퀴즈를 풀면 일지에 담겨요(틀려도 OK). 📷 사진·✏️ 한 줄은 오늘의 리캡에 나와요. ❔ 친구는 다음 방문에 만나러 가요!</p>`;
+      <p class="qsub">매일 마을마다 한두 친구가 🎓 퀴즈를 준비해요! 퀴즈를 풀면 일지에 담겨요(틀려도 OK). ✨ 발견 탐험 친구는 사진으로 찾아도 담겨요. 📷 그 밖의 사진·✏️ 한 줄은 오늘의 리캡에 나와요. ❔ 친구는 다음 방문에 만나러 가요!</p>`;
     for (const cell of body.querySelectorAll('.dexcell[data-a]')) {
       const a = list.find((x) => x.id === cell.dataset.a);
       if (a.met && a.met.photo) {

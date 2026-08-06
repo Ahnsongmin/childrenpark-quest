@@ -288,12 +288,12 @@ T: {
     'The park is open 5 AM–10 PM, and you can meet the animal friends from 10 AM to 5 PM! 🕐',
   '리니워니만 아는 곳 알려줄게! 🤫 ①유강원 석물 — 옛날 황태자비 무덤의 돌조각 42개가 남아 있어(능동이라는 이름도 여기서 왔대!) ②팔각당 4층 무료 전망대 ③여름에 홍련이 피는 환경연못 ④전래동화마을. 가봤어?':
     'Here are places only Lini-Woni knows! 🤫 ① Yugangwon Stone Figures — 42 stone carvings from an old crown princess’s tomb remain here (the district name Neung-dong comes from it!) ② the free 4th-floor observation deck at Palgakdang ③ the eco-pond where red lotuses bloom in summer ④ Folk Tale Village. Been to any of them?',
-  '📔 발견일지는 🎓 퀴즈를 풀어야 채워져! 틀려도 괜찮아, 배우면 성공이거든. 동물 우리 가까이 가면 퀴즈가 튀어나올 거야!':
-    'Your 📔 field journal fills up when you solve 🎓 quizzes! Getting one wrong is fine — learning is the win. Walk up to an enclosure and a quiz will pop out!',
+  '📔 발견일지는 두 가지로 채워져! ① 🎓 퀴즈 풀기 — 틀려도 괜찮아, 배우면 성공이거든. ② ✨ 발견 탐험에 나온 친구를 📷 사진으로 찾기! 둘 다 해보자!':
+    'There are two ways to fill your 📔 field journal! ① Solve a 🎓 quiz — getting one wrong is fine, learning is the win. ② Find a friend from your ✨ discovery quest with a 📷 photo! Try both!',
   '매일 마을마다 한두 친구가 🎓 퀴즈를 준비해! 누군지는 비밀 — 우리 가까이 가면 튀어나와. 풀면 발견일지에 담긴단다!':
     'Every day, one or two friends in each village have a 🎓 quiz ready! Who it is stays a secret — walk up to the enclosure and it pops out. Solve it and it goes into your field journal!',
-  '동물 친구를 톡 누르고 📷 사진 찍기를 하면 오늘의 리캡 스토리에 나와! 사진은 네 휴대폰 밖으로 나가지 않으니 안심해. 📱':
-    'Tap an animal friend and use 📷 Take a photo — it will show up in your recap story! Your photos never leave your phone, so don’t worry. 📱',
+  '동물 친구를 톡 누르고 📷 사진 찍기를 하면 오늘의 리캡 스토리에 나와! ✨ 발견 탐험에 나온 친구를 찍으면 📔 발견일지에도 담긴단다. 사진은 네 휴대폰 밖으로 나가지 않으니 안심해. 📱':
+    'Tap an animal friend and use 📷 Take a photo — it will show up in your recap story! Photograph a friend from your ✨ discovery quest and it goes into your 📔 field journal too. Your photos never leave your phone, so don’t worry. 📱',
   '내 기록 → 🌟 오늘의 리캡에서 "🎬 오늘 탐험 끝!"을 눌러봐. 오늘 만난 동물들이 스토리로 착착 넘어가고, 마음에 드는 장면은 📤 이미지로 공유할 수 있어!':
     'Go to My records → 🌟 Today’s recap and tap “🎬 Finish today’s quest!”. The animals you met turn into a story you can flip through, and you can 📤 share any scene you like as an image!',
   '지하철 7호선 어린이대공원역에서 가까워! 🚇 주차장은 유료(5분당 150~450원)니까 대중교통이 편할 거야.':
@@ -310,8 +310,8 @@ T: {
     'Quests are waiting for you at these places today. Take your time and walk over with the map!',
   '동물 친구 가까이 가면 탐험이 열려요 — 눌러서 오늘의 탐험 보기':
     'Quests open when you get close to an animal — tap to see today’s quests',
-  '매일 마을마다 한두 친구가 🎓 퀴즈를 준비해요! 퀴즈를 풀면 일지에 담겨요(틀려도 OK). 📷 사진·✏️ 한 줄은 오늘의 리캡에 나와요. ❔ 친구는 다음 방문에 만나러 가요!':
-    'Every day one or two friends in each village have a 🎓 quiz ready! Solve one and it goes in your journal (wrong answers are fine). 📷 Photos and ✏️ notes appear in today’s recap. Come back next visit to meet the ❔ friends!',
+  '매일 마을마다 한두 친구가 🎓 퀴즈를 준비해요! 퀴즈를 풀면 일지에 담겨요(틀려도 OK). ✨ 발견 탐험 친구는 사진으로 찾아도 담겨요. 📷 그 밖의 사진·✏️ 한 줄은 오늘의 리캡에 나와요. ❔ 친구는 다음 방문에 만나러 가요!':
+    'Every day one or two friends in each village have a 🎓 quiz ready! Solve one and it goes in your journal (wrong answers are fine). Friends from your ✨ discovery quest also count when you photograph them. Other 📷 photos and ✏️ notes appear in today’s recap. Come back next visit to meet the ❔ friends!',
   '교육 탐험': 'Learning quest',
   '쉬어가기': 'Take a break',
   '관찰노트': 'Observation notes',
@@ -324,8 +324,8 @@ T: {
   '📷 사진 찍기': '📷 Take a photo',
   '📷 사진 붙이기': '📷 Attach a photo',
   '📷 누구를 찍을까요?': '📷 Who shall we photograph?',
-  '📷 사진을 남겼어요 — 오늘의 리캡에 나와요! 📔 발견일지는 🎓 퀴즈를 풀면 채워져요.':
-    '📷 Photo saved — it will appear in today’s recap! Your 📔 field journal fills up when you solve 🎓 quizzes.',
+  '📷 사진을 남겼어요 — 오늘의 리캡에 나와요! 📔 발견일지는 🎓 퀴즈를 풀거나 ✨ 발견 탐험 친구를 사진으로 찾으면 채워져요.':
+    '📷 Photo saved — it will appear in today’s recap! Your 📔 field journal fills up when you solve a 🎓 quiz, or photograph a friend from your ✨ discovery quest.',
   '🔍 관찰노트에 기록했어요! 오늘의 리캡에 담겨요': '🔍 Saved to your observation notes! It will appear in today’s recap',
   '발견일지에 담겼어요!': 'Added to your field journal!',
   '관찰한 내용을 적거나 사진을 붙여봐요': 'Write what you observed, or attach a photo',
