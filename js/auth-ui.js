@@ -1,7 +1,7 @@
 /* 회원가입 / 로그인 창 — 자기 DOM과 CSS를 직접 만들어 붙이므로 어느 페이지에서도 쓸 수 있다.
    여는 법: window.dispatchEvent(new CustomEvent('auth-open', { detail: { mode: 'signup' | 'login' } }))
    끝나면 'auth-changed'가 발생한다(account.js가 발생시킴) — 화면들은 이 이벤트로 상태를 갱신한다. */
-import { signup, login, idTaken, errorText, isLoggedIn } from './account.js';
+import { signup, login, idTaken, errorText, isLoggedIn, session, logout, syncNow } from './account.js';
 
 const CSS = `
 #authWrap { position: fixed; inset: 0; z-index: 40; display: none; }
@@ -56,12 +56,12 @@ function build() {
     <div id="authBox" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <h3 id="authTitle">🌱 회원가입</h3>
       <p class="sub" id="authSub">아이디와 비밀번호만 있으면 돼요.<br>다음에 로그인하면 오늘의 기록을 그대로 이어서 써요!</p>
-      <label for="authId">아이디</label>
-      <div class="row">
+      <label for="authId" id="authIdLabel">아이디</label>
+      <div class="row" id="authIdRow">
         <input id="authId" maxlength="16" autocomplete="username" placeholder="영문 소문자·숫자 4~16자">
         <button id="authCheck" type="button">중복확인</button>
       </div>
-      <label for="authPw">비밀번호</label>
+      <label for="authPw" id="authPwLabel">비밀번호</label>
       <input id="authPw" type="password" maxlength="32" autocomplete="current-password" placeholder="4자 이상">
       <p id="authMsg" role="status"></p>
       <button id="authGo">회원가입 하기</button>
@@ -89,13 +89,21 @@ function msg(text, ok = false) {
 function setMode(m) {
   mode = m;
   checked = '';
+  /* account = 이미 로그인한 사람이 👤 버튼을 눌렀을 때 — 아이디 확인과 로그아웃만 */
+  const accountMode = m === 'account';
   const signupMode = m === 'signup';
-  $('authTitle').textContent = signupMode ? '🌱 회원가입' : '🔑 로그인';
-  $('authSub').innerHTML = signupMode
-    ? '아이디와 비밀번호만 있으면 돼요.<br>다음에 로그인하면 오늘의 기록을 그대로 이어서 써요!'
-    : '지난번에 만든 아이디로 들어오면<br>발견일지와 해금한 캐릭터가 그대로 돌아와요!';
+  for (const id of ['authIdLabel', 'authIdRow', 'authPwLabel', 'authPw']) {
+    $(id).style.display = accountMode ? 'none' : '';
+  }
+  $('authTitle').textContent = accountMode ? '🔑 내 계정' : signupMode ? '🌱 회원가입' : '🔑 로그인';
+  $('authSub').innerHTML = accountMode
+    ? `<b>${(session() || {}).username || ''}</b>님으로 로그인 중이에요.<br>발견일지와 캐릭터가 이 아이디에 저장되고 있어요.`
+    : signupMode
+      ? '아이디와 비밀번호만 있으면 돼요.<br>다음에 로그인하면 오늘의 기록을 그대로 이어서 써요!'
+      : '지난번에 만든 아이디로 들어오면<br>발견일지와 해금한 캐릭터가 그대로 돌아와요!';
   $('authCheck').style.display = signupMode ? 'block' : 'none';
-  $('authGo').textContent = signupMode ? '회원가입 하기' : '로그인 하기';
+  $('authGo').textContent = accountMode ? '로그아웃' : signupMode ? '회원가입 하기' : '로그인 하기';
+  $('authSwap').style.display = accountMode ? 'none' : '';
   $('authSwap').textContent = signupMode ? '이미 아이디가 있어요 — 로그인하기' : '아이디가 없어요 — 회원가입하기';
   $('authPw').setAttribute('autocomplete', signupMode ? 'new-password' : 'current-password');
   msg('');
@@ -119,6 +127,12 @@ async function check() {
 }
 
 async function submit() {
+  if (mode === 'account') { // 로그아웃 — 나가기 전에 기록을 한 번 더 올린다
+    await syncNow();
+    logout();
+    close();
+    return;
+  }
   const id = idOf();
   const pw = $('authPw').value;
   if (mode === 'signup') {
@@ -165,7 +179,7 @@ export const isOpen = () => !!($('authWrap') && $('authWrap').classList.contains
 export function initAuthUI() {
   build();
   window.addEventListener('auth-open', (e) => {
-    if (isLoggedIn() && (!e.detail || e.detail.mode !== 'login')) return; // 이미 로그인 상태면 다시 묻지 않는다
-    open((e.detail && e.detail.mode) || 'signup');
+    const want = (e.detail && e.detail.mode) || 'signup';
+    open(isLoggedIn() ? 'account' : want); // 이미 로그인했다면 계정 화면으로
   });
 }
