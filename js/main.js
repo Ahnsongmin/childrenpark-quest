@@ -1,10 +1,12 @@
 /* 부트스트랩: 렌더러·씬·카메라·내 캐릭터·GPS/데모·산책 데모·가족 공유·UI */
 import * as THREE from 'three';
 import { prj, M2U, inPark } from './geo.js';
+import { KEYS } from './config.js';
 import { buildWorld } from './scene.js';
 import { createMarkers } from './markers.js';
 import { createCameraCtl } from './cameraCtl.js';
 import { buildAvatar, loadAvatar, saveAvatar } from './character.js';
+import { mountCreator } from './creator.js';
 import { initFamily } from './family.js';
 import { openSheet, toast, updateHud, markSeen, setHudRefresh, initTutorial } from './ui.js';
 import { initQuests } from './quest.js';
@@ -486,9 +488,46 @@ window.__interior = interior;
 
 /* ─── UI ─── */
 updateHud();
-initTutorial();
 $('sheetBack').addEventListener('click', () => $('sheetWrap').classList.remove('open'));
-$('dressBtn').addEventListener('click', () => { location.href = 'customize.html'; });
+
+/* ─── 내 캐릭터 만들기 창 ───
+   들어올 때마다 띄운다 — 나이·오늘 머무는 시간은 방문마다 달라지고, 그 답으로 오늘의 탐험을 짜기 때문.
+   저장돼 있던 값은 그대로 채워져 있어 그대로 [저장]만 눌러도 된다.
+   앱 안의 다른 페이지(도감·사육사 화면)에서 돌아온 것은 같은 방문이므로 다시 띄우지 않는다.
+   튜토리얼은 이 창을 닫은 뒤에 시작해야 두 창이 겹치지 않는다. */
+let sameVisitReturn = false;
+try { sameVisitReturn = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (_) { /* 잘못된 referrer → 새 방문으로 */ }
+const qs = new URLSearchParams(location.search);
+const autoOpen = !sameVisitReturn && !qs.get('seed') && !qs.get('walk'); // 시연·영상 캡처 모드는 방해하지 않는다
+const tutorial = initTutorial({ auto: !autoOpen });
+
+let creator = null, creatorAuto = false;
+function openCreator(auto) {
+  if (creator) return;
+  creatorAuto = auto;
+  $('createWrap').classList.add('open');
+  creator = mountCreator($('createBody'), {
+    saveLabel: auto ? '✅ 저장하고 탐험 시작!' : '✅ 저장하고 지도로!',
+    skipLabel: auto ? '나중에 만들래요' : '',
+    showTypesLink: !auto, // 들어오자마자 도감으로 새어 나가지 않게
+    onSave: closeCreator,
+    onSkip: closeCreator,
+  });
+  creator.resize(); // 모달이 열린 뒤에야 실제 크기를 알 수 있다
+}
+function closeCreator() {
+  if (!creator) return;
+  creator.dispose();
+  creator = null;
+  $('createWrap').classList.remove('open');
+  quests.refreshPlan(); // 나이·체류 예정시간이 바뀌었으면 오늘 배정을 다시 계산
+  qui.refresh();
+  if (creatorAuto && !localStorage.getItem(KEYS.tutorial)) tutorial.open();
+}
+$('createClose').addEventListener('click', closeCreator);
+$('createBack').addEventListener('click', closeCreator);
+$('dressBtn').addEventListener('click', () => openCreator(false));
+if (autoOpen) openCreator(true);
 
 /* 탐험 완료(퀴즈 정답·발견 완성 등) → 2초 축하 점프 (questUI가 발화) */
 let celebrateUntil = 0;
@@ -539,11 +578,11 @@ function frame(ts) {
 }
 requestAnimationFrame(frame);
 
-if (new URLSearchParams(location.search).get('walk') === '1') startWalk(false);
+if (qs.get('walk') === '1') startWalk(false);
 
 /* ?seed=1 — 리캡 시연: 오늘 기록이 비어 있으면 시연 데이터를 채우고 스토리를 바로 연다.
    실기록이 이미 있으면 주입 없이 스토리만 연다 (실사용 데이터 보호). */
-if (new URLSearchParams(location.search).get('seed') === '1') {
+if (qs.get('seed') === '1') {
   import('./story.js').then(({ openStory }) => {
     localStorage.setItem('quest.tutorial.v2', '1'); // 시연 중 튜토리얼 생략
     $('tuto').classList.remove('show');

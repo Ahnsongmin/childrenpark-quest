@@ -225,7 +225,6 @@ T: {
   '🍃 잠시 쉬어 가기 좋은 곳이에요. 가까이 가면 쉬어가기 탐험이 열릴 수도!':
     '🍃 A nice place to take a break. Get closer and a rest quest may open up!',
   '🧭 탐험하며 천천히 지나가 봐요.': '🧭 Take your time as you explore.',
-  '👕 캐릭터 만들러 가기': '👕 Go make my character',
   '탐험 시작!': 'Start exploring!',
 
   /* ── config.js: 랜드마크 소개 ── */
@@ -488,6 +487,9 @@ T: {
   '오늘 얼마나 머무를 예정인가요? (탐험 개수를 맞춰 드려요)':
     'How long are you staying today? (we’ll match the number of quests)',
   '✅ 저장하고 지도로!': '✅ Save and go to the map',
+  '✅ 저장하고 탐험 시작!': '✅ Save and start exploring!',
+  '나중에 만들래요': 'I’ll make it later',
+  '내 캐릭터 만들기': 'Create my character',
   '저장 없이 지도로 돌아가기': 'Back to the map without saving',
   '🧢 유형 캐릭터': '🧢 Type characters',
   '유형 캐릭터': 'Type character',
@@ -684,8 +686,8 @@ P: [
 H: {
   '안녕! 우리는 공원 지킴이 <b>리니·워니</b>야! 🌳<br>공원 원정대에 온 걸 환영해!':
     'Hi! We’re <b>Lini &amp; Woni</b>, the park guardians! 🌳<br>Welcome to Park Explorers!',
-  '먼저 <b>너만의 탐험 캐릭터</b>를 만들어 보자!<br>나이를 알려주면 딱 맞는 탐험을 준비할게 👕':
-    'First, let’s make <b>your own explorer character</b>!<br>Tell us your age and we’ll match the quests to you 👕',
+  '<b>탐험 캐릭터</b>는 언제든 바꿀 수 있어!<br>오른쪽 <b>👕 버튼</b>을 누르면 다시 꾸밀 수 있어.<br><small>나이를 알려주면 딱 맞는 탐험을 준비할게.</small>':
+    'You can change your <b>explorer character</b> anytime!<br>Tap the <b>👕 button</b> on the right to dress up again.<br><small>Tell us your age and we’ll match the quests to you.</small>',
   '동물 친구 <b>가까이 다가가면 💡탐험</b>이 열려!<br>퀴즈도 풀고, 관찰노트도 남겨봐.<br><small>어디서 열릴지는 비밀 — 매일 달라져!</small>':
     '<b>Walk up to an animal friend and a 💡 quest</b> opens!<br>Solve quizzes and leave observation notes.<br><small>Where they appear is a secret — it changes every day!</small>',
   '공원에 오면 <b>📍 버튼</b>을 눌러 봐.<br>네 캐릭터가 지도 위를 같이 걸어다녀!<br><small>위치 정보는 휴대폰 안에서만 쓰이고 저장되지 않아.</small>':

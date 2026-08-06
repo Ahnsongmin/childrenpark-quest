@@ -166,6 +166,16 @@ export function initQuests({ onNear } = {}) {
       profile.age = age;
       saveJSON(P_KEY, profile);
     },
+    /* 나이·체류 예정시간을 나중에(캐릭터 만들기 창에서) 입력했을 때 오늘 배정을 다시 계산한다.
+       오늘 이미 뭔가 했다면 진행 중인 탐험이 사라지므로 그대로 둔다. */
+    refreshPlan() {
+      Object.assign(profile, loadJSON(P_KEY, {})); // 만들기 창이 저장한 나이·체류시간을 다시 읽는다
+      const v = ensureVisit();
+      if (v.done.length || v.met.length || v.disc.length) return false;
+      v.assign = computeAssign(v.n);
+      save();
+      return true;
+    },
     get visit() { return ensureVisit(); },
     get near() { return near; },
     spotById: (id) => spotById.get(id),

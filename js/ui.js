@@ -64,26 +64,20 @@ export function toast(msg, title) { // title을 주면 두 줄(제목+본문), �
 /* ─── 리니워니 튜토리얼 ─── */
 const STEPS = [
   { text: '안녕! 우리는 공원 지킴이 <b>리니·워니</b>야! 🌳<br>공원 원정대에 온 걸 환영해!' },
-  { text: '먼저 <b>너만의 탐험 캐릭터</b>를 만들어 보자!<br>나이를 알려주면 딱 맞는 탐험을 준비할게 👕', action: { label: '👕 캐릭터 만들러 가기', go: 'customize.html' } },
+  { text: '<b>탐험 캐릭터</b>는 언제든 바꿀 수 있어!<br>오른쪽 <b>👕 버튼</b>을 누르면 다시 꾸밀 수 있어.<br><small>나이를 알려주면 딱 맞는 탐험을 준비할게.</small>' },
   { text: '동물 친구 <b>가까이 다가가면 💡탐험</b>이 열려!<br>퀴즈도 풀고, 관찰노트도 남겨봐.<br><small>어디서 열릴지는 비밀 — 매일 달라져!</small>' },
   { text: '공원에 오면 <b>📍 버튼</b>을 눌러 봐.<br>네 캐릭터가 지도 위를 같이 걸어다녀!<br><small>위치 정보는 휴대폰 안에서만 쓰이고 저장되지 않아.</small>' },
   { text: '<b>🎓 퀴즈를 풀면 📔 발견일지</b>에 차곡차곡!<br><b>👪 버튼</b>으로 가족과 함께 보면<br>잃어버릴 걱정도 없어. 그럼, 탐험 시작! 🎒' },
 ];
 
-export function initTutorial() {
+/* auto: 아직 안 본 사람에게 바로 열지 여부.
+   첫 방문은 캐릭터 만들기 창이 먼저라, main.js가 저장 후 open()을 직접 부른다. */
+export function initTutorial({ auto = true } = {}) {
   const wrap = $('tuto');
   let step = 0;
 
   function render() {
     $('tutoText').innerHTML = STEPS[step].text;
-    const act = $('tutoAction');
-    if (STEPS[step].action) {
-      act.style.display = 'block';
-      act.textContent = STEPS[step].action.label;
-      act.onclick = () => { finish(); location.href = STEPS[step].action.go; };
-    } else {
-      act.style.display = 'none';
-    }
     $('tutoNext').textContent = step === STEPS.length - 1 ? '탐험 시작!' : '다음';
     $('tutoDots').innerHTML = STEPS.map((_, i) => `<i class="${i === step ? 'on' : ''}"></i>`).join('');
   }
@@ -105,5 +99,6 @@ export function initTutorial() {
   $('tutoSkip').addEventListener('click', finish);
   $('helpBtn').addEventListener('click', open);
 
-  if (!localStorage.getItem(KEYS.tutorial)) open();
+  if (auto && !localStorage.getItem(KEYS.tutorial)) open();
+  return { open };
 }

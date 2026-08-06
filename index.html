@@ -212,6 +212,24 @@
     font-size: 12px; color: #8a9a80;
   }
 
+  /* 내 캐릭터 만들기 창 — 첫 진입 시 자동으로, 이후엔 👕 버튼으로 연다.
+     화면 본체는 js/creator.js가 그린다(꾸미기 페이지와 같은 화면). */
+  #createWrap { position: absolute; inset: 0; z-index: 22; display: none; }
+  #createWrap.open { display: block; }
+  #createBack { position: absolute; inset: 0; background: rgba(15,35,20,.5); }
+  #createModal {
+    position: absolute; left: 10px; right: 10px; top: 3%; bottom: 3%;
+    background: linear-gradient(#bfe3f2, #eaf6e6 60%);
+    border-radius: 22px; padding: 14px 14px 20px; overflow-y: auto;
+    box-shadow: 0 12px 34px rgba(0,0,0,.35);
+  }
+  #createModal .preview { height: 220px; } /* 모달은 지면이 좁으니 미리보기를 조금 낮게 */
+  #createClose {
+    position: absolute; top: 16px; right: 18px; z-index: 2; border: 0;
+    background: #ffffffd9; color: #445; font-size: 15px; width: 32px; height: 32px;
+    border-radius: 50%; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+
   /* 리니워니 튜토리얼 */
   #tuto {
     position: absolute; inset: 0; z-index: 20; background: rgba(15,35,20,.58);
@@ -229,11 +247,6 @@
   #tutoText { font-size: 14.5px; line-height: 1.65; color: #334; }
   #tutoText b { color: #2e6b34; }
   #tutoText small { color: #98a; font-size: 11.5px; }
-  #tutoAction {
-    display: none; margin-top: 12px; width: 100%; border: 0; border-radius: 12px;
-    background: #f5b83d; color: #4a3800; font-size: 14px; font-weight: 800;
-    padding: 11px; cursor: pointer;
-  }
   #tuto .mascotRow { display: flex; align-items: flex-end; justify-content: flex-end; padding: 0 18px; }
   #tutoImg { /* 투명 배경 — 캐릭터만, 화면 높이의 약 2/5 크기로 오른쪽에 */
     height: 40dvh; max-height: 400px; max-width: 88%; object-fit: contain; object-position: right bottom;
@@ -630,10 +643,17 @@
     </div>
   </div>
 
+  <div id="createWrap">
+    <div id="createBack"></div>
+    <div id="createModal" class="fsc" role="dialog" aria-modal="true" aria-label="내 캐릭터 만들기">
+      <button id="createClose" aria-label="닫기">✕</button>
+      <div id="createBody"></div>
+    </div>
+  </div>
+
   <div id="tuto" class="fsc">
     <div class="bubble">
       <p id="tutoText"></p>
-      <button id="tutoAction"></button>
     </div>
     <div class="mascotRow">
       <img id="tutoImg" src="img/liniwani.png" alt="리니워니" onerror="this.style.display='none'">
