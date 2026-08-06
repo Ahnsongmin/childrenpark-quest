@@ -38,13 +38,14 @@
   #title small { display: block; font-size: 10px; font-weight: 600; color: #7ba381; }
   /* 도움말 옆 보조 버튼 줄 — ❓ 도움말 · 가 글씨 크기 · 🌐 언어 (#langBtn 규칙은 js/i18n.js에 있다).
      글씨를 키워도 자리가 밀리면 안 되므로 이 셋에는 .fsc(zoom)를 붙이지 않는다. */
-  #helpBtn, #fontBtn {
+  #helpBtn, #fontBtn, #recapBtn {
     position: absolute; top: 66px; z-index: 5;
     width: 34px; height: 34px; border-radius: 50%; border: 0;
     background: #ffffffee; font-size: 16px; cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,.15);
   }
   #helpBtn { left: 12px; }
+  #recapBtn { left: 138px; } /* ❓ 가 🌐 다음 네 번째 자리 — 🌐(96px)는 js/i18n.js가 놓는다 */
 
   /* 공원 밖 배너 */
   #banner {
@@ -117,8 +118,8 @@
   /* 글씨를 키우면 '오늘의 탐험' 카드가 높아져 우측 버튼과 겹친다 — 버튼 열만큼 폭을 비운다 */
   html.fs1 #hud, html.fs2 #hud { right: 74px; }
   /* 타이틀 카드도 함께 커지므로 ❓·가·🌐 줄을 그만큼 내린다 (타이틀 아래 62/71/81px) */
-  html.fs1 #helpBtn, html.fs1 #fontBtn, html.fs1 #langBtn { top: 76px; }
-  html.fs2 #helpBtn, html.fs2 #fontBtn, html.fs2 #langBtn { top: 86px; }
+  html.fs1 #helpBtn, html.fs1 #fontBtn, html.fs1 #langBtn, html.fs1 #recapBtn { top: 76px; }
+  html.fs2 #helpBtn, html.fs2 #fontBtn, html.fs2 #langBtn, html.fs2 #recapBtn { top: 86px; }
   #locBtn.on { background: #3b82f6; }
   #walkBtn.on { background: #f5b83d; }
   #famBtn.on { background: #7ed695; }
@@ -535,6 +536,7 @@
   <button id="recBtn" aria-label="내 기록">📔</button>
   <button id="chatBtn" aria-label="리니워니에게 물어보기">💬</button>
   <button id="fontBtn" aria-label="글씨 크기 조절">가</button>
+  <button id="recapBtn" aria-label="오늘의 리캡 보기">🎬</button>
 
   <div id="famWrap">
     <div id="famBack"></div>

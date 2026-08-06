@@ -1078,7 +1078,10 @@ async function shareCurrent() {
    슬라이드를 만드는 동안(사진·지도 그리기) 시계를 돌리며, 그 사이 회원가입을 권한다.
    기록을 계정에 담아두면 다음 방문에 로그인해서 발견일지·해금 캐릭터를 그대로 쓸 수 있다. */
 const CLOCKS = ['🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛'];
-const MIN_LOAD_MS = 2600; // 문구를 읽을 수 있을 만큼은 보여준다
+/* 안내를 읽고 [회원가입]까지 누를 시간을 준다 (2026-08-06 사용자 요청: 15초).
+   이미 로그인한 사람에게는 권할 것이 없으므로 짧게 지나간다. */
+const MIN_LOAD_MS = 15000;
+const MIN_LOAD_MS_MEMBER = 2600;
 let clockTm = 0;
 
 function showLoading() {
@@ -1098,15 +1101,25 @@ function showLoading() {
     btn.dataset.bound = '1';
     btn.addEventListener('click', () => window.dispatchEvent(new CustomEvent('auth-open', { detail: { mode: 'signup' } })));
   }
+  const total = s ? MIN_LOAD_MS_MEMBER : MIN_LOAD_MS;
+  const t0 = Date.now();
+  const dots = wrap.querySelector('.dots');
   let i = 0;
   clearInterval(clockTm);
-  clockTm = setInterval(() => { $('recapClock').textContent = CLOCKS[++i % CLOCKS.length]; }, 220);
+  const tick = () => {
+    $('recapClock').textContent = CLOCKS[++i % CLOCKS.length];
+    // 15초는 꽤 기니 남은 시간을 보여준다 — 멈춘 화면으로 보이지 않게
+    const left = Math.ceil((total - (Date.now() - t0)) / 1000);
+    dots.textContent = left > 0 ? `잠시만 기다려 주세요 (${left}초)` : '잠시만 기다려 주세요';
+  };
+  tick();
+  clockTm = setInterval(tick, 220);
   wrap.classList.add('open');
-  return Date.now();
+  return t0;
 }
 
 async function hideLoading(startedAt) {
-  const wait = MIN_LOAD_MS - (Date.now() - startedAt);
+  const wait = (session() ? MIN_LOAD_MS_MEMBER : MIN_LOAD_MS) - (Date.now() - startedAt);
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   while (authOpen()) await new Promise((r) => setTimeout(r, 250)); // 가입 창을 닫을 때까지 기다린다
   clearInterval(clockTm);

@@ -299,6 +299,8 @@ export function initQuestUI(quests, opts = {}) {
   const recWrap = $('recWrap');
   $('recBack').addEventListener('click', () => recWrap.classList.remove('open'));
   $('recBtn').addEventListener('click', () => { openRecord('dex'); });
+  /* 🎬 리캡 버튼 — 스토리 보기 버튼이 기록 안에 묻혀 있어 바로 그 탭으로 연다 */
+  $('recapBtn').addEventListener('click', () => { openRecord('recap'); });
   let recTab = 'dex';
 
   function openRecord(tab) {

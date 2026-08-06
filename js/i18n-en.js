@@ -467,6 +467,7 @@ T: {
     'The four starter characters are available right away. There are 16 types based on how you move around the park (movement pattern) and which quests you enjoy (quest style) — finish a day as one of those types and its character unlocks!',
 
   /* ── 계정 (회원가입 · 로그인) · 리캡 만드는 중 ── */
+  '오늘의 리캡 보기': 'See today’s recap',
   '리캡이 생성되고 있어요!': 'Your recap is being made!',
   '잠시만 기다려 주세요': 'Just a moment, please',
   '오늘의 발견일지와 해금된 캐릭터를 사용하고 싶으시다면 회원가입하고 다음에 로그인을 해주세요':
@@ -709,7 +710,8 @@ P: [
   ['해금한 유형 {} / 16 — 잠긴 캐릭터는 그 유형으로 탐험을 마치면 열려요.',
    '{0} / 16 types unlocked — locked characters open when you finish a day as that type.'],
 
-  /* 계정 */
+  /* 계정 · 리캡 대기 */
+  ['잠시만 기다려 주세요 ({}초)', 'Just a moment, please ({0}s)'],
   ['{}님, 가입 완료! 오늘 기록이 이 아이디에 저장돼요 🎉',
    '{0}, you’re in! Today’s records will be saved to this ID 🎉'],
   ['{}님, 반가워요! 기록을 불러올게요…', 'Welcome back, {0}! Loading your records…'],
