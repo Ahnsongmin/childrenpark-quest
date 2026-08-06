@@ -466,6 +466,43 @@ T: {
   '기본 캐릭터 4명은 처음부터 쓸 수 있어요. 공원을 어떻게 돌아다녔는지(이동 패턴)와\n    어떤 탐험을 좋아하는지(탐험 성향)에 따라 16가지 유형이 있고, 그 유형으로 탐험을 마치면\n    유형 캐릭터가 해금돼요!':
     'The four starter characters are available right away. There are 16 types based on how you move around the park (movement pattern) and which quests you enjoy (quest style) — finish a day as one of those types and its character unlocks!',
 
+  /* ── 계정 (회원가입 · 로그인) · 리캡 만드는 중 ── */
+  '리캡이 생성되고 있어요!': 'Your recap is being made!',
+  '잠시만 기다려 주세요': 'Just a moment, please',
+  '오늘의 발견일지와 해금된 캐릭터를 사용하고 싶으시다면 회원가입하고 다음에 로그인을 해주세요':
+    'Want to keep today’s field journal and the character you unlocked? Sign up now and log in next time.',
+  '오늘의 발견일지와 해금된 캐릭터를 ': 'Today’s field journal and unlocked character are being saved to ',
+  '님 아이디에 저장하고 있어요.': '’s account.',
+  '다음에 로그인하면 그대로 이어서 쓸 수 있어요!': 'Log in next time and pick up right where you left off!',
+  '🌱 회원가입': '🌱 Sign up',
+  '🔑 로그인': '🔑 Log in',
+  '로그아웃': 'Log out',
+  '지난번에 해금한 캐릭터를 사용하려면 로그인을 해주세요!': 'Log in to use the character you unlocked last time!',
+  '님으로 로그인 중이에요.': ' is logged in.',
+  '발견일지와 캐릭터가 이 아이디에 저장돼요.': 'Your journal and character are saved to this ID.',
+  '아이디': 'ID',
+  '비밀번호': 'Password',
+  '중복확인': 'Check ID',
+  '회원가입 하기': 'Create account',
+  '로그인 하기': 'Log in',
+  '이미 아이디가 있어요 — 로그인하기': 'Already have an ID? Log in',
+  '아이디가 없어요 — 회원가입하기': 'No ID yet? Sign up',
+  '영문 소문자·숫자 4~16자': 'lowercase letters/numbers, 4-16',
+  '4자 이상': '4 characters or more',
+  '아이디는 영문 소문자와 숫자 4~16자로 만들어 주세요': 'Use 4-16 lowercase letters or numbers for your ID',
+  '비밀번호는 4자 이상으로 해주세요': 'Passwords need at least 4 characters',
+  '이미 쓰고 있는 아이디예요': 'That ID is already taken',
+  '이미 쓰고 있는 아이디예요. 다른 걸로 해볼까요?': 'That ID is taken — how about another one?',
+  '쓸 수 있는 아이디예요! 👍': 'That ID is available! 👍',
+  '아이디나 비밀번호가 맞지 않아요': 'That ID or password doesn’t match',
+  '로그인이 만료됐어요. 다시 로그인해 주세요': 'Your login expired — please log in again',
+  '기록이 너무 커서 저장하지 못했어요': 'Your records are too large to save',
+  '인터넷이 불안정해요. 잠시 뒤 다시 해주세요': 'The connection is unstable — please try again shortly',
+  '먼저 [중복확인]을 눌러 주세요': 'Tap [Check ID] first',
+  '아이디와 비밀번호를 입력해 주세요': 'Please enter your ID and password',
+  '가입하는 중이에요…': 'Signing you up…',
+  '들어가는 중이에요…': 'Logging you in…',
+
   /* ── customize.html ── */
   '내 캐릭터 만들기 — 공원 원정대': 'Create My Character — Park Explorers',
   '👕 내 캐릭터 만들기': '👕 Create my character',
@@ -672,6 +709,11 @@ P: [
   ['해금한 유형 {} / 16 — 잠긴 캐릭터는 그 유형으로 탐험을 마치면 열려요.',
    '{0} / 16 types unlocked — locked characters open when you finish a day as that type.'],
 
+  /* 계정 */
+  ['{}님, 가입 완료! 오늘 기록이 이 아이디에 저장돼요 🎉',
+   '{0}, you’re in! Today’s records will be saved to this ID 🎉'],
+  ['{}님, 반가워요! 기록을 불러올게요…', 'Welcome back, {0}! Loading your records…'],
+
   /* customize.html */
   ['오늘의 탐험 {}개를 준비해요 — 동물마을 {}곳 · 쉼터 {}곳{}',
    'We’ll prepare {0} quests today — {1} animal villages · {2} rest spots{3}'],
@@ -684,6 +726,12 @@ P: [
 
 /* ─────────── 문장이 태그로 쪼개진 곳(통째 교체) ─────────── */
 H: {
+  '아이디와 비밀번호만 있으면 돼요.<br>다음에 로그인하면 오늘의 기록을 그대로 이어서 써요!':
+    'All you need is an ID and a password.<br>Log in next time and today’s records come right back!',
+  '지난번에 만든 아이디로 들어오면<br>발견일지와 해금한 캐릭터가 그대로 돌아와요!':
+    'Sign in with the ID you made last time and<br>your field journal and unlocked characters come back!',
+  '아이디와 비밀번호 말고는 아무것도 받지 않아요. 비밀번호는 알아볼 수 없게 바꿔서 보관돼요.<br>사진은 이 기기에만 남고 전송되지 않아요.':
+    'We ask for nothing but an ID and a password, and the password is stored scrambled beyond recognition.<br>Photos stay on this device and are never uploaded.',
   '안녕! 우리는 공원 지킴이 <b>리니·워니</b>야! 🌳<br>공원 원정대에 온 걸 환영해!':
     'Hi! We’re <b>Lini &amp; Woni</b>, the park guardians! 🌳<br>Welcome to Park Explorers!',
   '<b>탐험 캐릭터</b>는 언제든 바꿀 수 있어!<br>오른쪽 <b>👕 버튼</b>을 누르면 다시 꾸밀 수 있어.<br><small>나이를 알려주면 딱 맞는 탐험을 준비할게.</small>':

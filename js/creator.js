@@ -6,6 +6,7 @@ import { buildAvatar, loadAvatar, saveAvatar, TOPS, BOTTOMS } from './character.
 import { basesFor, baseImagePath, parseComboId, getCombo } from './explorer-types.mjs';
 import { stayBandOf } from './mission-score.mjs';
 import { loadJSON, saveJSON } from './store.js';
+import { session, logout } from './account.js';
 
 const P_KEY = 'quest.profile.v1';
 
@@ -46,6 +47,14 @@ const CSS = `
   width: 100%; border: 2px solid #e2e8e2; border-radius: 14px; padding: 12px 14px; font-size: 15px;
 }
 .creator .stayNote { font-size: 12px; color: #6a8a70; margin-top: 8px; line-height: 1.55; }
+.creator .authPanel { display: flex; align-items: center; gap: 10px; }
+.creator .authPanel p { flex: 1; font-size: 12.5px; color: #4d6b52; line-height: 1.5; margin: 0; }
+.creator .authPanel b { color: #2e6b34; }
+.creator .authPanel button {
+  flex: none; border: 2px solid #2e6b34; border-radius: 12px; background: #2e6b34; color: #fff;
+  font-size: 13px; font-weight: 800; padding: 10px 14px; cursor: pointer; white-space: nowrap;
+}
+.creator .authPanel button.ghost { background: #fff; color: #2e6b34; font-size: 12px; padding: 8px 11px; }
 .creator .saveBtn {
   display: block; width: 100%; border: 0; border-radius: 16px;
   background: #2e6b34; color: #fff; font-size: 16px; font-weight: 800; padding: 15px; cursor: pointer;
@@ -99,6 +108,8 @@ function markup({ saveLabel, showTypesLink, skipLabel }) {
       <a href="characters.html" style="color:#2e6b34;font-weight:700">유형 도감 보기 →</a>
     </p>
   </div>
+
+  <div class="panel authPanel"></div>
 
   <div class="panel stylePanel">
     <h3>스타일</h3>
@@ -257,6 +268,24 @@ export function mountCreator(root, { saveLabel = '✅ 저장하고 지도로!', 
     if (gearCombo) q('.gearName').textContent = `${gearCombo.animalEmoji} ${gearCombo.koreanName}`;
   }
 
+  /* 로그인 안내 — 지난번에 해금한 캐릭터를 다시 쓰려면 여기서 로그인한다.
+     로그인 중이면 아이디와 로그아웃 버튼을 보여준다. */
+  function renderAuth() {
+    const el = q('.authPanel');
+    const s = session();
+    el.innerHTML = s
+      ? `<p>🔑 <b>${s.username}</b>님으로 로그인 중이에요.<br>발견일지와 캐릭터가 이 아이디에 저장돼요.</p>
+         <button type="button" class="ghost">로그아웃</button>`
+      : `<p>지난번에 해금한 캐릭터를 사용하려면 로그인을 해주세요!</p>
+         <button type="button">🔑 로그인</button>`;
+    el.querySelector('button').addEventListener('click', () => {
+      if (s) { logout(); return; }
+      window.dispatchEvent(new CustomEvent('auth-open', { detail: { mode: 'login' } }));
+    });
+  }
+  renderAuth();
+  window.addEventListener('auth-changed', renderAuth);
+
   function sync() {
     for (const b of q('.genderOpts').children) b.classList.toggle('sel', b.dataset.v === cfg.gender);
     for (const b of q('.styleOpts').children) b.classList.toggle('sel', (b.dataset.v === 'dress') === cfg.dress);
@@ -303,6 +332,7 @@ export function mountCreator(root, { saveLabel = '✅ 저장하고 지도로!', 
       disposed = true;
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
+      window.removeEventListener('auth-changed', renderAuth);
       renderer.dispose();
       renderer.forceContextLoss(); // 모달을 여러 번 여닫아도 WebGL 컨텍스트가 쌓이지 않게
       root.innerHTML = '';

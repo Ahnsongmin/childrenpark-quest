@@ -49,7 +49,11 @@
 </script>
 <script type="module">
 import { mountCreator } from './js/creator.js';
+import { initAuthUI } from './js/auth-ui.js';
+import { initAutoSync } from './js/account.js';
 
+initAuthUI();
+initAutoSync();
 mountCreator(document.getElementById('creatorRoot'), {
   onSave: () => { location.href = 'index.html'; },
 });

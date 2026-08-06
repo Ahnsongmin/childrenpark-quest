@@ -7,6 +7,8 @@ import { createMarkers } from './markers.js';
 import { createCameraCtl } from './cameraCtl.js';
 import { buildAvatar, loadAvatar, saveAvatar } from './character.js';
 import { mountCreator } from './creator.js';
+import { initAutoSync } from './account.js';
+import { initAuthUI } from './auth-ui.js';
 import { initFamily } from './family.js';
 import { openSheet, toast, updateHud, markSeen, setHudRefresh, initTutorial } from './ui.js';
 import { initQuests } from './quest.js';
@@ -488,6 +490,8 @@ window.__interior = interior;
 
 /* ─── UI ─── */
 updateHud();
+initAuthUI();   // 회원가입·로그인 창 (리캡 화면과 캐릭터 만들기 창에서 연다)
+initAutoSync(); // 로그인 상태면 기록이 바뀔 때마다 계정에 자동 저장
 $('sheetBack').addEventListener('click', () => $('sheetWrap').classList.remove('open'));
 
 /* ─── 내 캐릭터 만들기 창 ───

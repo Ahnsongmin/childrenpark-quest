@@ -444,6 +444,27 @@
   #choiceKeep { background: #ffffffd9; color: #445; }
   #choiceNew { background: #f5b83d; color: #4a3800; }
 
+  /* 리캡 만드는 중 — 시계가 돌아가는 동안 회원가입을 권한다 */
+  #recapLoad {
+    position: absolute; inset: 0; z-index: 21; display: none;
+    background: #111; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px 22px; text-align: center;
+  }
+  #recapLoad.open { display: flex; }
+  #recapClock { font-size: 66px; line-height: 1.2; }
+  #recapLoad h3 { font-size: 19px; color: #fff; margin-top: 14px; }
+  #recapLoad .dots { font-size: 12px; color: #9db3a3; margin-top: 8px; letter-spacing: 3px; }
+  #recapJoin {
+    margin-top: 30px; background: #ffffff14; border: 1px solid #ffffff2e; border-radius: 18px;
+    padding: 16px 16px 14px; max-width: 340px;
+  }
+  #recapJoin p { font-size: 13px; line-height: 1.65; color: #e6f0e8; word-break: keep-all; }
+  #recapJoin b { color: #ffe08a; }
+  #recapJoinBtn {
+    width: 100%; margin-top: 13px; border: 0; border-radius: 14px; background: #f5b83d; color: #4a3800;
+    font-size: 15px; font-weight: 800; padding: 12px; cursor: pointer;
+  }
+
   /* 마을 안(내부 지도) 모드 */
   #zoneBar {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 6;
@@ -603,6 +624,16 @@
         <input id="chatText" type="text" maxlength="200" placeholder="궁금한 걸 물어봐!">
         <button id="chatSend">보내기</button>
       </div>
+    </div>
+  </div>
+
+  <div id="recapLoad" class="fsc">
+    <div id="recapClock">🕐</div>
+    <h3>리캡이 생성되고 있어요!</h3>
+    <div class="dots">잠시만 기다려 주세요</div>
+    <div id="recapJoin">
+      <p id="recapJoinMsg">오늘의 발견일지와 해금된 캐릭터를 사용하고 싶으시다면 회원가입하고 다음에 로그인을 해주세요</p>
+      <button id="recapJoinBtn">🌱 회원가입</button>
     </div>
   </div>
 

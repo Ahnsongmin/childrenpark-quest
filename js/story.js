@@ -15,6 +15,8 @@ import { shade, iEyo, euRo } from './explorer-types.mjs';
 import { unlockedSet } from './unlock.js';
 import { renderCharacterImage } from './type-render.js';
 import { M2U } from './geo.js';
+import { session, syncNow } from './account.js';
+import { isOpen as authOpen } from './auth-ui.js';
 import { easeOut, phase, countP, upInt, upFix, countDur, riseP, COUNT_DELAY, COUNT_DUR, COUNT_GAP } from './anim.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -1047,6 +1049,7 @@ function closeStory() {
   $('storyWrap').classList.remove('open', 'choosing');
   $('storyChoice').style.display = 'none';
   renderSeq++;
+  syncNow(); // 리캡에서 해금·교체한 캐릭터까지 계정에 담아 둔다 (로그인 상태일 때만 동작)
 }
 
 /* 리캡은 캔버스라 언어를 바꿔도 저절로 다시 그려지지 않는다 — 보고 있던 장면을 다시 그린다 */
@@ -1071,9 +1074,50 @@ async function shareCurrent() {
   }
 }
 
+/* ── 리캡 만드는 중 화면 ──
+   슬라이드를 만드는 동안(사진·지도 그리기) 시계를 돌리며, 그 사이 회원가입을 권한다.
+   기록을 계정에 담아두면 다음 방문에 로그인해서 발견일지·해금 캐릭터를 그대로 쓸 수 있다. */
+const CLOCKS = ['🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛'];
+const MIN_LOAD_MS = 2600; // 문구를 읽을 수 있을 만큼은 보여준다
+let clockTm = 0;
+
+function showLoading() {
+  const wrap = $('recapLoad');
+  if (!wrap) return 0;
+  const s = session();
+  const msg = $('recapJoinMsg');
+  const btn = $('recapJoinBtn');
+  if (s) { // 이미 로그인한 사람에게 가입을 다시 권하지 않는다
+    msg.innerHTML = `오늘의 발견일지와 해금된 캐릭터를 <b>${s.username}</b>님 아이디에 저장하고 있어요.<br>다음에 로그인하면 그대로 이어서 쓸 수 있어요!`;
+    btn.style.display = 'none';
+  } else {
+    msg.textContent = '오늘의 발견일지와 해금된 캐릭터를 사용하고 싶으시다면 회원가입하고 다음에 로그인을 해주세요';
+    btn.style.display = 'block';
+  }
+  if (!btn.dataset.bound) {
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => window.dispatchEvent(new CustomEvent('auth-open', { detail: { mode: 'signup' } })));
+  }
+  let i = 0;
+  clearInterval(clockTm);
+  clockTm = setInterval(() => { $('recapClock').textContent = CLOCKS[++i % CLOCKS.length]; }, 220);
+  wrap.classList.add('open');
+  return Date.now();
+}
+
+async function hideLoading(startedAt) {
+  const wait = MIN_LOAD_MS - (Date.now() - startedAt);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  while (authOpen()) await new Promise((r) => setTimeout(r, 250)); // 가입 창을 닫을 때까지 기다린다
+  clearInterval(clockTm);
+  const wrap = $('recapLoad');
+  if (wrap) wrap.classList.remove('open');
+}
+
 /* ── 진입점 ── */
 let bound = false;
 export async function openStory(quests) {
+  const loadStarted = showLoading();
   slides = await buildSlides(quests);
   idx = 0; blobs = [];
 
@@ -1121,6 +1165,7 @@ export async function openStory(quests) {
     if (s.kind === 'stats') s.spots.forEach((sp) => sp.animal && cachedImg(`img/animals/${sp.animal}.jpg`));
   }
 
+  await hideLoading(loadStarted);
   $('storyWrap').classList.add('open');
   updateBars();
   renderSlide(0);
