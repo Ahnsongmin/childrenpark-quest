@@ -147,6 +147,12 @@ T: {
     'Testing outside the park? Turn on 🚶 Walk demo and your position will appear on their screen.',
   '위치는 같은 코드를 아는 가족끼리만 실시간으로 공유되고, 어디에도 저장되지 않아요.':
     'Locations are shared live only among people who know the code, and are never stored anywhere.',
+  '얼굴 인식과 생체정보는 사용하지 않아요.': 'No face recognition or biometric data is used.',
+  '🛡️ 안전 거리 알림': '🛡️ Safe-distance alerts',
+  '알림을 시작할 거리': 'Distance at which alerts start',
+  '끄기': 'Off',
+  '거리 알림을 받지 않아요. 지도에서 가족 위치는 계속 보여요.':
+    'Distance alerts are off. Your family still shows on the map.',
   '📍 위치정보 사용 안내': '📍 About location access',
   '캐릭터가 실제 위치를 따라 공원 지도를 움직이려면': 'To let your character follow your real position on the park map, we need',
   '위치정보 권한': 'location permission',
@@ -536,8 +542,16 @@ P: [
   /* ui.js */
   ['이곳 친구들: {}', 'Animals here: {0}'],
 
-  /* family.js */
-  ['⚠️ {}와 {}m 떨어졌어요!', '⚠️ You’re {1} m away from {0}!'],
+  /* family.js — 안전 거리 알림 (단계마다 별도 패턴: 아이콘·단계명을 통째로 번역) */
+  ['🟡 주의 — {}와 {}m 떨어졌어요!', '🟡 Heads-up — you’re {1} m from {0}!'],
+  ['🟠 경고 — {}와 {}m 떨어졌어요!', '🟠 Warning — you’re {1} m from {0}!'],
+  ['🔴 위험 — {}와 {}m 떨어졌어요!', '🔴 Alert — you’re {1} m from {0}!'],
+  ['🟢 {}와 다시 가까워졌어요 ({}m)', '🟢 Back together with {0} ({1} m)'],
+  ['🟡 {}m 주의', '🟡 {0} m Heads-up'],
+  ['🟠 {}m 경고', '🟠 {0} m Warning'],
+  ['🔴 {}m 위험', '🔴 {0} m Alert'],
+  ['{}m 이상 떨어지면 알려드려요. 더 멀어지면 🟡20m·🟠50m·🔴100m 단계로 알림이 세져요. 가족 모두의 기기에서 함께 울려요.',
+    'We’ll alert you once you’re {0} m apart. The further you go, the stronger it gets — 🟡20 m · 🟠50 m · 🔴100 m. Everyone in the family gets it on their own device.'],
   ['가족 코드 {} 연결됐어요', 'Connected with family code {0}'],
   ['초대코드 {} — 누르면 바로 연결돼요', 'Invite code {0} — tap to connect right away'],
 

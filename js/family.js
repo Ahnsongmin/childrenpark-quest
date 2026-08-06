@@ -5,14 +5,18 @@ import { SB_URL, SB_KEY, KEYS } from './config.js';
 import { M2U } from './geo.js';
 import { buildAvatar, makeNameSprite, DEFAULT_AVATAR } from './character.js';
 import { toast } from './ui.js';
+import {
+  ALERT_COOLDOWN_MS, ALERT_REPEAT_MS, stepAt, stepOf, alertable as alertableFor, normalizeFrom,
+} from './family-alert.mjs';
 
 const $ = (id) => document.getElementById(id);
 const ROLE = { '👩': '엄마', '👨': '아빠', '🧒': '아이', '🧓': '조부모' }; // 구버전 payload 폴백
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v), getAv() }
   const famBtn = $('famBtn');
   const famWrap = $('famWrap');
-  let sb = null, famCh = null, famCode = null, lastShare = 0, famHb = null;
+  let sb = null, famCh = null, famCode = null, lastShare = 0, famHb = null, famWatch = null;
 
   const myId = sessionStorage.getItem(KEYS.myid) || (() => {
     const v = Math.random().toString(36).slice(2, 10);
@@ -20,8 +24,20 @@ export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v
     return v;
   })();
 
-  const members = new Map(); // id -> { name, avKey, chibi, label, cur, tgt, phase, warnedAt }
+  const members = new Map(); // id -> { id, name, avKey, chibi, label, cur, tgt, phase, level, alertLevel, alertAt }
   const famReady = () => typeof window.supabase !== 'undefined' && !SB_KEY.includes('PASTE');
+
+  /* 알림 시작 거리(m). 0이면 끔 — 기기에만 저장 */
+  const alertFrom = () => normalizeFrom(localStorage.getItem(KEYS.famAlert));
+  const alertable = (level) => alertableFor(level, alertFrom());
+
+  function fireAlert(m, level, dm) {
+    const s = stepAt(level);
+    m.alertLevel = level;
+    m.alertAt = Date.now();
+    toast(`${s.icon} ${s.name} — ${m.name}와 ${dm}m 떨어졌어요!`);
+    try { navigator.vibrate?.(s.vib); } catch (_) { /* 진동 미지원 기기 */ }
+  }
 
   function disposeChibi(m) {
     ctx.scene.remove(m.chibi.group);
@@ -58,7 +74,10 @@ export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v
   function ensureMember(id, meta) {
     let m = members.get(id);
     if (!m) {
-      m = { name: '', avKey: '', chibi: null, label: null, cur: null, tgt: new THREE.Vector3(), phase: 0, warnedAt: 0 };
+      m = {
+        id, name: '', avKey: '', chibi: null, label: null, cur: null, tgt: new THREE.Vector3(), phase: 0,
+        level: 0, alertLevel: 0, alertAt: 0, // 안전 거리 알림 상태
+      };
       members.set(id, m);
     }
     const { name, av } = parseMeta(meta);
@@ -78,29 +97,81 @@ export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v
     renderFamList();
   }
 
-  function labelFor(m) {
+  /* 나와의 거리(m). 내 위치나 상대 위치가 아직 없으면 null.
+     기준은 m.cur(화면에서 부드럽게 따라가는 위치)가 아니라 m.tgt(마지막으로 받은 실제 위치) —
+     안전 알림이 걷는 연출의 이징만큼 늦게 울면 안 되고, 화면이 멈춰도 값이 정확해야 한다. */
+  function distM(m) {
     const me = ctx.myPos();
-    if (!me || m.cur === null) return m.name;
-    const dm = Math.round(Math.hypot(m.cur.x - me[0], m.cur.z - me[1]) / M2U);
-    if (dm > 250 && Date.now() - m.warnedAt > 60000) {
-      m.warnedAt = Date.now();
-      toast(`⚠️ ${m.name}와 ${dm}m 떨어졌어요!`);
+    if (!me || m.cur === null) return null;
+    return Math.round(Math.hypot(m.tgt.x - me[0], m.tgt.z - me[1]) / M2U);
+  }
+
+  /* 단계 판정 — 올라가면 알리고, 계속 떨어져 있으면 2분마다 한 번 더, 돌아오면 해제 안내.
+     같은 계산을 상대 기기도 하므로 양쪽이 함께 알림을 받는다(브로드캐스트는 위치가 없는 쪽을 위한 보강). */
+  function checkDistance(m) {
+    const dm = distM(m);
+    if (dm === null) return;
+    const prev = m.level;
+    const lv = stepOf(dm, prev);
+    m.level = lv;
+    if (lv !== prev && famWrap.classList.contains('open')) renderFamList(); // 단계가 바뀌면 목록도 바로
+    if (lv > prev && alertable(lv)) {
+      if (Date.now() - m.alertAt > ALERT_COOLDOWN_MS || lv > m.alertLevel) {
+        fireAlert(m, lv, dm);
+        sendAlert(m, lv, dm);
+      }
+    } else if (lv > 0 && lv === prev && m.alertLevel && Date.now() - m.alertAt > ALERT_REPEAT_MS && alertable(lv)) {
+      fireAlert(m, lv, dm); // 계속 떨어져 있음 — 잊지 않도록 한 번 더
+    } else if (lv === 0 && m.alertLevel) {
+      m.alertLevel = 0;
+      toast(`🟢 ${m.name}와 다시 가까워졌어요 (${dm}m)`);
     }
-    return `${m.name} ${dm}m`;
+  }
+
+  function labelFor(m) {
+    const dm = distM(m);
+    if (dm === null) return m.name;
+    const s = m.level ? stepAt(m.level) : null;
+    return s && alertable(m.level) ? `${s.icon} ${m.name} ${dm}m` : `${m.name} ${dm}m`;
   }
 
   function renderFamList() {
     const li = $('famList');
     if (!members.size) { li.textContent = '아직 참여한 가족이 없어요. 코드를 알려주세요!'; return; }
-    const me = ctx.myPos();
     li.innerHTML = '';
     for (const m of members.values()) {
       const row = document.createElement('div');
-      let dm = ' — 연결됨 (위치 기다리는 중)';
-      if (m.cur !== null) dm = me ? ` — ${Math.round(Math.hypot(m.cur.x - me[0], m.cur.z - me[1]) / M2U)}m` : ' — 지도에 표시됨';
-      row.textContent = `${m.name}${dm}`;
+      const dm = distM(m);
+      if (dm === null) {
+        row.textContent = `${m.name}${m.cur === null ? ' — 연결됨 (위치 기다리는 중)' : ' — 지도에 표시됨'}`;
+      } else if (alertable(m.level)) {
+        const s = stepAt(m.level);
+        row.innerHTML = `${esc(m.name)} — <span class="far s${s.level}">${s.icon} ${dm}m ${s.name}</span>`;
+      } else {
+        row.textContent = `${m.name} — ${dm}m`;
+      }
       li.appendChild(row);
     }
+  }
+
+  /* 상대에게도 알림 — 그쪽 위치정보가 아직 없어 스스로 계산하지 못하는 경우를 위한 보강.
+     좌표가 아니라 '누구와 몇 m, 몇 단계'만 실어 보낸다(저장 없음). */
+  function sendAlert(m, level, dm) {
+    if (!famCh) return;
+    famCh.send({
+      type: 'broadcast', event: 'alert',
+      payload: { from: myId, name: ctx.getName(), to: m.id, level, dm },
+    });
+  }
+
+  function onRemoteAlert(p) {
+    if (p.to !== myId) return;
+    const m = members.get(p.from);
+    if (!m || !alertable(p.level)) return;
+    if (Date.now() - m.alertAt < ALERT_COOLDOWN_MS) return; // 내 기기가 이미 같은 상황을 알렸다
+    m.level = Math.max(m.level, p.level);
+    fireAlert(m, p.level, p.dm);
+    renderFamList();
   }
 
   function shareMyPos(x, y) {
@@ -121,6 +192,7 @@ export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v
     famCode = code;
     famCh = sb.channel(`fam-${code}`, { config: { presence: { key: myId }, broadcast: { self: false } } });
     famCh.on('broadcast', { event: 'pos' }, ({ payload }) => upsertMember(payload));
+    famCh.on('broadcast', { event: 'alert' }, ({ payload }) => onRemoteAlert(payload));
     famCh.on('presence', { event: 'sync' }, () => {
       const st = famCh.presenceState();
       for (const [key, metas] of Object.entries(st)) {
@@ -151,6 +223,11 @@ export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v
           const me = ctx.myPos();
           if (me) { lastShare = 0; shareMyPos(me[0], me[1]); }
         }, 4000);
+        /* 안전 거리 판정은 1초 타이머로 — rAF에 묶으면 화면이 가려졌을 때 알림이 멈춘다 */
+        clearInterval(famWatch);
+        famWatch = setInterval(() => {
+          for (const m of members.values()) checkDistance(m);
+        }, 1000);
       } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
         toast('연결에 실패했어요. 잠시 후 다시 시도해 주세요');
         famLeave(false);
@@ -160,7 +237,9 @@ export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v
 
   function famLeave(ui = true) {
     clearInterval(famHb);
+    clearInterval(famWatch);
     famHb = null;
+    famWatch = null;
     if (famCh) { famCh.unsubscribe(); famCh = null; }
     famCode = null;
     for (const m of members.values()) disposeChibi(m);
@@ -191,6 +270,27 @@ export function initFamily(ctx) { // ctx: { scene, myPos(), getName(), setName(v
     famJoin(code);
   });
   $('famJoin').addEventListener('click', () => famJoin($('famCode').value));
+
+  /* 안전 거리 알림 설정 — 20 / 50 / 100m 중 시작 거리 선택, 0이면 끔 */
+  function renderAlertSetting() {
+    const from = alertFrom();
+    for (const b of document.querySelectorAll('#famAlert .arow button')) {
+      b.classList.toggle('on', Number(b.dataset.d) === from);
+    }
+    $('famAlertSub').textContent = from
+      ? `${from}m 이상 떨어지면 알려드려요. 더 멀어지면 🟡20m·🟠50m·🔴100m 단계로 알림이 세져요. 가족 모두의 기기에서 함께 울려요.`
+      : '거리 알림을 받지 않아요. 지도에서 가족 위치는 계속 보여요.';
+  }
+  for (const b of document.querySelectorAll('#famAlert .arow button')) {
+    b.addEventListener('click', () => {
+      localStorage.setItem(KEYS.famAlert, b.dataset.d);
+      for (const m of members.values()) { m.level = 0; m.alertLevel = 0; m.alertAt = 0; } // 설정 바꾸면 단계 초기화
+      renderAlertSetting();
+      renderFamList();
+    });
+  }
+  renderAlertSetting();
+
   $('famLeave').addEventListener('click', () => famLeave());
   $('famShare').addEventListener('click', async () => {
     const url = famLink();

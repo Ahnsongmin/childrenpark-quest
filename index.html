@@ -148,6 +148,19 @@
   #famModal .code { font-size: 13px; color: #556; margin-bottom: 10px; }
   #famModal .code b { font-size: 22px; letter-spacing: 4px; color: #2e6b34; margin-left: 6px; }
   #famList { font-size: 13px; color: #445; line-height: 1.9; margin-bottom: 8px; }
+  #famList .far { font-weight: 700; }
+  #famList .s1 { color: #b98900; } /* 주의 20m */
+  #famList .s2 { color: #d97706; } /* 경고 50m */
+  #famList .s3 { color: #c0392b; } /* 위험 100m */
+  #famAlert { border-top: 1px solid #eef2ee; margin: 10px 0 12px; padding-top: 10px; }
+  #famAlert .alabel { font-size: 12px; color: #556; font-weight: 700; margin-bottom: 8px; }
+  #famAlert .arow { display: flex; gap: 6px; }
+  #famAlert .arow button {
+    flex: 1; border: 2px solid #e2e8e2; border-radius: 10px; background: #fff;
+    color: #667; font-size: 13px; font-weight: 700; padding: 8px 0; cursor: pointer;
+  }
+  #famAlert .arow button.on { border-color: #2e6b34; background: #eef7e8; color: #2e6b34; }
+  #famAlert .asub { font-size: 10px; color: #8a9a80; margin-top: 8px; line-height: 1.5; }
   #famModal .priv { font-size: 10px; color: #a9b3aa; margin-top: 12px; line-height: 1.5; }
   #famModal .hint { font-size: 10px; color: #8a9a80; margin-top: 10px; line-height: 1.5; }
   #famQR { display: flex; justify-content: center; margin: 10px 0; }
@@ -498,10 +511,20 @@
         <div id="famQR"></div>
         <button class="big" id="famShare">📤 초대 링크 보내기</button>
         <div id="famList"></div>
+        <div id="famAlert">
+          <div class="alabel">🛡️ 안전 거리 알림</div>
+          <div class="arow" role="group" aria-label="알림을 시작할 거리">
+            <button data-d="20">20m</button>
+            <button data-d="50">50m</button>
+            <button data-d="100">100m</button>
+            <button data-d="0">끄기</button>
+          </div>
+          <div class="asub" id="famAlertSub"></div>
+        </div>
         <button class="big off" id="famLeave">공유 끝내기</button>
         <p class="hint">가족은 이 QR을 카메라로 찍거나 링크만 누르면 바로 연결돼요.<br>공원 밖에서 테스트할 땐 🚶 산책 데모를 켜면 내 위치가 가족 화면에 보여요.</p>
       </div>
-      <p class="priv">위치는 같은 코드를 아는 가족끼리만 실시간으로 공유되고, 어디에도 저장되지 않아요.</p>
+      <p class="priv">위치는 같은 코드를 아는 가족끼리만 실시간으로 공유되고, 어디에도 저장되지 않아요.<br>얼굴 인식과 생체정보는 사용하지 않아요.</p>
     </div>
   </div>
 

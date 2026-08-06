@@ -47,6 +47,7 @@ export const KEYS = {
   avatar: 'quest.avatar.v1',
   tutorial: 'quest.tutorial.v2',
   myid: 'quest.myid',
+  famAlert: 'quest.famalert.v1', // 가족 안전 거리 알림 시작 거리(m) — 0이면 끔
 };
 
 export const SB_URL = 'https://cnvezqmnxsmdrqhagmrq.supabase.co';

@@ -1,6 +1,6 @@
 /* 공원 원정대 서비스 워커 — 오프라인 지원 (앱 셸 사전 캐시 + 갱신형 캐시)
    배포 시 자산이 바뀌면 VERSION을 올려야 이전 캐시가 정리된다. */
-const VERSION = 'quest-v17';
+const VERSION = 'quest-v18';
 /* 탐험 유형 32캐릭터 일러스트 (4이동×4성향×남녀) + 기본 캐릭터 4종 — 지도 아바타·도감 공용 */
 const CHARACTER_IMGS = ['explorer', 'curious', 'focus', 'speed'].flatMap((mv) =>
   ['detective', 'fairy', 'boss', 'guide'].flatMap((ms) =>
@@ -20,6 +20,7 @@ const PRECACHE = [
   'js/quests-data.js', 'js/quest.js', 'js/questUI.js', 'js/store.js', 'js/interior.js', 'js/story.js', 'js/chat.js', 'js/track.js',
   'js/geomath.mjs', 'js/explorer-types.mjs', 'js/location.js', 'js/type-render.js', 'js/type-card.js',
   'js/unlock.js', 'js/mission-score.mjs', 'js/animal-status.js', 'data/animal-status.js', 'js/anim.mjs',
+  'js/family-alert.mjs',
   'keeper.html',
   'img/liniwani.png',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
